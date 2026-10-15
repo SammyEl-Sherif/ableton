@@ -1,0 +1,103 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-22.04
+          - name: macOS
+            os: macos-14
+          - name: Windows
+            os: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxext-dev libgl1-mesa-dev \
+            libcurl4-openssl-dev xvfb
+
+      - name: Install Ninja (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Cache fetched dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ runner.os }}-${{ hashFiles('cmake/FetchDependencies.cmake') }}
+
+      - name: Configure
+        shell: bash
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release ${{ runner.os != 'Windows' && '-G Ninja' || '' }}
+
+      - name: Build (VST3 + tests)
+        shell: bash
+        run: cmake --build build --config Release --parallel 4
+
+      - name: Test
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a ctest --test-dir build -C Release --output-on-failure
+          else
+            ctest --test-dir build -C Release --output-on-failure
+          fi
+
+      - name: Validate VST3 with pluginval (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -sL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Linux.zip
+          unzip -q pluginval.zip
+          for bundle in $(find build -type d -name '*.vst3' -prune); do
+            xvfb-run -a ./pluginval --strictness-level 5 --validate-in-process --timeout-ms 120000 "$bundle"
+          done
+
+      - name: Collect VST3 bundles
+        shell: bash
+        run: |
+          mkdir -p dist
+          find build -type d -name '*.vst3' -prune -exec cp -R {} dist/ \;
+          ls -la dist
+
+      - name: Upload VST3 bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: animal-audio-vst3-${{ runner.os }}
+          path: dist
+          if-no-files-found: error
+
+  format:
+    name: clang-format
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: |
+          sudo apt-get update && sudo apt-get install -y clang-format
+          git ls-files '*.h' '*.cpp' | xargs clang-format --dry-run --Werror
+
+  repo-checks:
+    name: repo checks (skills in sync, no cross-plugin includes)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check_repo.sh

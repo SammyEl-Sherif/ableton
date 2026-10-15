@@ -1,0 +1,33 @@
+# Build output
+/build/
+/build-*/
+/cmake-build-*/
+/out/
+/Builds/
+*.vst3
+*.component
+*.app
+
+# IDE / OS
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.xcodeproj/
+*.user
+.DS_Store
+Thumbs.db
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+Testing/
+
+# Python
+__pycache__/
+*.pyc
+
+# Local scratch
+/.cache/
+/tmp/
