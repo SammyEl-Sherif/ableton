@@ -94,3 +94,10 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y clang-format
           git ls-files '*.h' '*.cpp' | xargs clang-format --dry-run --Werror
+
+  repo-checks:
+    name: repo checks (skills in sync, no cross-plugin includes)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check_repo.sh

@@ -13,10 +13,10 @@ realtime-safe processing, and a bold, playful look with a bit of animal personal
 <!-- PLUGINS:START -->
 | Plugin | What it does | Source | Status |
 | --- | --- | --- | --- |
-| **Duck** | Tempo-synced volume ducking with a draggable curve editor, 16 preset shapes and a big MIX knob | `plugins/duck` | Alpha: builds as VST3, 50 tests pass, passes pluginval level 10 on Linux; not yet tried in a real DAW |
+| **Duck** | Tempo-synced volume ducking with a draggable curve editor, 16 preset shapes and a big MIX knob | `plugins/duck` | Alpha: builds as VST3, all tests pass, passes pluginval level 10 on Linux; not yet tried in a real DAW |
 <!-- PLUGINS:END -->
 
-More animals are on the way. Adding one takes a single command, see [Adding a plugin](#adding-a-plugin).
+More animals are on the way. Adding one takes a single command (or the `/vst` agent skill), see [Adding a plugin](#adding-a-plugin).
 
 ## Duck
 
@@ -43,7 +43,7 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 </p>
 
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
-> (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "Editor renders headlessly"`).
+> (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
 
 ## Build
 
@@ -92,25 +92,40 @@ drop it on any audio track.
 ```
 CMakeLists.txt          top level: fetches JUCE/Catch2, adds shared/ and every plugins/*
 cmake/                  FetchDependencies.cmake, AnimalAudioPlugin.cmake (aa_add_plugin)
-shared/dsp/             animalaudio::dsp  header-only C++17 DSP (smoothing, tempo sync, curves) + tests
-shared/ui/              animalaudio::ui   brand badge, pill buttons, rotary knob, palette
-plugins/<name>/         one folder per plugin: CMakeLists.txt, Source/, tests/
+shared/dsp/             animalaudio::dsp  header-only C++17 DSP (smoothing, tempo sync, curves, gain engine) + tests
+shared/core/            animalaudio::core curve state, shaper processor base class (params, state, transport)
+shared/ui/              animalaudio::ui   Theme (palette + animal motif), the shaper editor and its widgets
+shared/testing/         animalaudio::testing  standard test suites every shaper plugin runs
+plugins/<name>/         one folder per plugin: only what is specific to it (presets, theme/motif, own DSP)
 templates/plugin/       starter used by scripts/new_plugin.py
-scripts/                new_plugin.py, format.sh
+.cursor/skills/vst/     the /vst skill (mirrored to .claude/skills/vst/)
+scripts/                new_plugin.py, verify_plugin.sh, format.sh, sync_skills.sh, check_repo.sh
 docs/images/            README screenshots
 AGENTS.md               guide for AI agents and contributors (CLAUDE.md and .cursor/rules point here)
 ```
 
 ## Adding a plugin
 
+**With an agent:** run the `/vst` skill (Cursor: type `/vst Otter, a tempo-synced stereo wobbler`; Claude Code
+reads the same skill from `.claude/skills/vst`). It scaffolds, implements DSP and an animal-themed UI, adds
+tests, builds, runs ctest and pluginval, updates this README and AGENTS.md, and opens a PR.
+
+**By hand:**
+
 ```bash
 python3 scripts/new_plugin.py Wobble --description "Tempo-synced stereo wobbler"
 cmake -S . -B build
-cmake --build build --target Wobble_VST3
+scripts/verify_plugin.sh Wobble        # build, ctest, screenshots, pluginval
 ```
 
-This copies `templates/plugin` to `plugins/wobble`, picks a unique plugin code, and adds a row to the
-table above. See [AGENTS.md](AGENTS.md) for conventions and the realtime-safety rules.
+You get a working Duck-style plugin (same layout: big knob, division pills, curve editor, preset row,
+Animal Audio branding) with **its own colour scheme**: the script picks a hue far from the other plugins,
+and `makePaletteFromHue()` turns it into a full palette. The animal is a small `Motif` class (mascot, knob cap,
+background, decoration) in the plugin's own `Source/ui/`.
+
+Code is shared, not copied: everything generic lives in `shared/` (`dsp`, `core`, `ui`, `testing`), and the
+rule is that the second use of anything moves it there. A plugin folder holds only presets, theme/motif and
+its own DSP. See [AGENTS.md](AGENTS.md) for the policy, conventions and realtime-safety rules.
 
 ## Status and caveats
 
