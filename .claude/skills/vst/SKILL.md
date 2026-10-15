@@ -1,7 +1,7 @@
 ---
 name: vst
 description: Create a new Animal Audio VST3 plugin end to end in this monorepo (scaffold, DSP, animal-themed UI with its own palette, tests, build, pluginval, docs, PR). Use when the user runs /vst <name or idea> or asks for a new plugin in the series. Enforces the shared-library (DRY) policy.
-argument-hint: <plugin name or idea, e.g. "Otter: a tempo-synced stereo wobbler">
+argument-hint: '<plugin name or idea, e.g. "Otter: a tempo-synced stereo wobbler">'
 ---
 
 # /vst: build a new Animal Audio plugin
