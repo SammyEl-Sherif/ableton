@@ -8,6 +8,7 @@ if(AA_BUILD_TESTS)
     add_executable(animalaudio_dsp_tests
         tests/CurveGainShaperTests.cpp
         tests/ShapeCurveTests.cpp
+        tests/StandardPresetsTests.cpp
         tests/SmoothingTests.cpp
         tests/TempoSyncTests.cpp)
     target_link_libraries(animalaudio_dsp_tests PRIVATE animalaudio::dsp Catch2::Catch2WithMain)
