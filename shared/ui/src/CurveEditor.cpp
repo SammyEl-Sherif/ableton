@@ -1,15 +1,15 @@
-#include "CurveEditor.h"
+#include <animalaudio/ui/CurveEditor.h>
 
-#include "DuckArt.h"
-#include "DuckPalette.h"
+#include <animalaudio/ui/Drawing.h>
 
-namespace duck::ui
+namespace animalaudio::ui
 {
-using animalaudio::dsp::ShapeCurve;
+using dsp::ShapeCurve;
 
-CurveEditor::CurveEditor(DuckProcessor& p, const animalaudio::ui::Palette& palette)
+CurveEditor::CurveEditor(core::CurveShaperProcessor& p, const Theme& themeToUse)
     : processor(p)
-    , colours(palette)
+    , theme(themeToUse)
+    , colours(themeToUse.palette)
     , curve(p.getCurveState().getCurve())
 {
     setOpaque(false);
@@ -192,11 +192,11 @@ void CurveEditor::paint(juce::Graphics& g)
         clip.addRoundedRectangle(bounds, 10.0f);
         g.reduceClipRegion(clip);
 
-        g.setGradientFill(juce::ColourGradient(waterColour().withAlpha(0.0f), 0.0f,
+        g.setGradientFill(juce::ColourGradient(colours.ambient.withAlpha(0.0f), 0.0f,
                                                bounds.getY() + bounds.getHeight() * 0.35f,
-                                               waterColour().withAlpha(0.10f), 0.0f, bounds.getBottom(), false));
+                                               colours.ambient.withAlpha(0.10f), 0.0f, bounds.getBottom(), false));
         g.fillRect(bounds);
-        drawWater(g, bounds.withTop(bounds.getY() + bounds.getHeight() * 0.45f), waterColour(), seconds);
+        theme.motif->drawAmbient(g, bounds.withTop(bounds.getY() + bounds.getHeight() * 0.45f), seconds, colours);
 
         // beat grid: quarters of the cycle
         for (int i = 0; i <= 4; ++i)
@@ -209,21 +209,21 @@ void CurveEditor::paint(juce::Graphics& g)
         g.drawHorizontalLine(juce::roundToInt(plot.getY()), plot.getX(), plot.getRight());
         g.drawHorizontalLine(juce::roundToInt(plot.getBottom()), plot.getX(), plot.getRight());
 
-        // post-duck signal level, mirrored around the centre line
-        const auto& engine = processor.getEngine();
+        // post-effect signal level, mirrored around the centre line
         const float centreY = plot.getCentreY();
-        const float binW = plot.getWidth() / static_cast<float>(DuckEngine::kScopeBins);
+        const int numBins = processor.getNumScopeBins();
+        const float binW = numBins > 0 ? plot.getWidth() / static_cast<float>(numBins) : 0.0f;
         g.setColour(colours.textDim.withAlpha(0.24f));
-        for (int i = 0; i < DuckEngine::kScopeBins; ++i)
+        for (int i = 0; i < numBins; ++i)
         {
-            const float level = juce::jlimit(0.0f, 1.0f, engine.getScopeBin(i));
+            const float level = juce::jlimit(0.0f, 1.0f, processor.getScopeBin(i));
             const float h = level * plot.getHeight() * 0.5f;
             g.fillRect(plot.getX() + binW * static_cast<float>(i), centreY - h, juce::jmax(1.0f, binW - 0.5f),
                        h * 2.0f);
         }
 
         // effective gain (curve scaled by mix) as a translucent fill
-        const float mix = processor.apvts.getRawParameterValue(ids::mix.getParamID())->load();
+        const float mix = processor.getMix();
         juce::Path fill;
         fill.startNewSubPath(plot.getX(), plot.getBottom());
         const int steps = 160;
@@ -249,7 +249,7 @@ void CurveEditor::paint(juce::Graphics& g)
     }
 
     g.setColour(colours.textDim.withAlpha(0.55f));
-    g.setFont(animalaudio::ui::makeFont(9.5f, false));
+    g.setFont(makeFont(9.5f, false));
     g.drawText("DOUBLE-CLICK TO ADD / REMOVE A NODE   |   DRAG THE DIAMONDS TO BEND",
                getLocalBounds().toFloat().withTrimmedLeft(24.0f).withTrimmedBottom(3.0f),
                juce::Justification::bottomLeft, false);
@@ -266,7 +266,7 @@ void CurveEditor::paint(juce::Graphics& g)
         diamond.addQuadrilateral(c.x, c.y - r, c.x + r, c.y, c.x, c.y + r, c.x - r, c.y);
         g.setColour(colours.background.withAlpha(0.85f));
         g.fillPath(diamond);
-        g.setColour(active ? colours.accent : billColour());
+        g.setColour(active ? colours.accent : colours.detail);
         g.strokePath(diamond, juce::PathStrokeType(1.6f));
     }
 
@@ -285,15 +285,16 @@ void CurveEditor::paint(juce::Graphics& g)
         g.fillEllipse(c.x - r * 0.45f, c.y - r * 0.45f, r * 0.9f, r * 0.9f);
     }
 
-    // playhead + duck riding the curve
-    const float phase = phaseOverride >= 0.0f ? phaseOverride : processor.getEngine().getDisplayPhase();
+    // playhead + mascot riding the curve
+    const float phase = phaseOverride >= 0.0f ? phaseOverride : processor.getDisplayPhase();
     const float px = plot.getX() + phase * plot.getWidth();
     g.setColour(juce::Colours::white.withAlpha(0.55f));
     g.drawVerticalLine(juce::roundToInt(px), plot.getY(), plot.getBottom());
 
-    const float duckSize = 26.0f;
+    const float mascotSize = 26.0f;
     const auto onCurve = toScreen(phase, curve.evaluate(phase));
-    drawRubberDuck(
-        g, juce::Rectangle<float>(duckSize, duckSize).withCentre({onCurve.x, onCurve.y - duckSize * 0.5f + 5.0f}));
+    theme.motif->drawMascot(
+        g, juce::Rectangle<float>(mascotSize, mascotSize).withCentre({onCurve.x, onCurve.y - mascotSize * 0.5f + 5.0f}),
+        colours);
 }
-} // namespace duck::ui
+} // namespace animalaudio::ui

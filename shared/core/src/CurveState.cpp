@@ -1,9 +1,9 @@
-#include "CurveState.h"
+#include <animalaudio/core/CurveState.h>
 
-namespace duck
+namespace animalaudio::core
 {
-using animalaudio::dsp::CurveTable;
-using animalaudio::dsp::ShapeCurve;
+using dsp::CurveTable;
+using dsp::ShapeCurve;
 
 juce::ValueTree curveToTree(const ShapeCurve& curve, int presetIndex)
 {
@@ -20,7 +20,7 @@ juce::ValueTree curveToTree(const ShapeCurve& curve, int presetIndex)
     return t;
 }
 
-ShapeCurve curveFromTree(const juce::ValueTree& curveTree)
+ShapeCurve curveFromTree(const juce::ValueTree& curveTree, const ShapeCurve& fallback)
 {
     std::vector<ShapeCurve::Node> nodes;
     for (const auto& child : curveTree)
@@ -32,12 +32,13 @@ ShapeCurve curveFromTree(const juce::ValueTree& curveTree)
                          static_cast<float>(static_cast<double>(child.getProperty(tree::bend, 0.0)))});
     }
     if (nodes.size() < 2)
-        return getPresets().front().makeCurve();
+        return fallback;
     return ShapeCurve(std::move(nodes));
 }
 
-CurveState::CurveState(juce::ValueTree& stateRoot)
+CurveState::CurveState(juce::ValueTree& stateRoot, const dsp::CurvePresetList& presetList)
     : root(stateRoot)
+    , presets(presetList)
 {
     root.addListener(this);
     ensureExists();
@@ -58,13 +59,13 @@ void CurveState::ensureExists()
 {
     if (!getCurveTree().isValid())
     {
-        root.appendChild(curveToTree(getPresets().front().makeCurve(), 0), nullptr);
+        root.appendChild(curveToTree(presets.front().makeCurve(), 0), nullptr);
     }
 }
 
 ShapeCurve CurveState::getCurve() const
 {
-    return curveFromTree(getCurveTree());
+    return curveFromTree(getCurveTree(), presets.front().makeCurve());
 }
 
 int CurveState::getPresetIndex() const
@@ -105,7 +106,6 @@ void CurveState::setCurve(const ShapeCurve& curve, int presetIndex)
 
 void CurveState::loadPreset(int index)
 {
-    const auto& presets = getPresets();
     if (index < 0 || index >= static_cast<int>(presets.size()))
         return;
     setCurve(presets[static_cast<std::size_t>(index)].makeCurve(), index);
@@ -162,4 +162,4 @@ void CurveState::republish()
     }
     sendChangeMessage();
 }
-} // namespace duck
+} // namespace animalaudio::core

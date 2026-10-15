@@ -1,12 +1,12 @@
-#include "PluginProcessor.h"
+#include <animalaudio/core/CurveShaperProcessor.h>
 
-#include "PluginEditor.h"
+#include <animalaudio/core/TransportReader.h>
 
-namespace duck
+namespace animalaudio::core
 {
-using namespace animalaudio::dsp;
+using namespace dsp;
 
-juce::AudioProcessorValueTreeState::ParameterLayout DuckProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout CurveShaperProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -31,19 +31,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout DuckProcessor::createParamet
     return layout;
 }
 
-DuckProcessor::DuckProcessor()
+CurveShaperProcessor::CurveShaperProcessor(const juce::String& name, const juce::Identifier& stateType,
+                                           const CurvePresetList& presets)
     : juce::AudioProcessor(BusesProperties()
                                .withInput("Input", juce::AudioChannelSet::stereo(), true)
                                .withOutput("Output", juce::AudioChannelSet::stereo(), true))
-    , apvts(*this, nullptr, "DuckState", createParameterLayout())
-    , curveState(apvts.state)
+    , apvts(*this, nullptr, stateType, createParameterLayout())
+    , pluginName(name)
+    , curveState(apvts.state, presets)
 {
     divisionParam = apvts.getRawParameterValue(ids::division.getParamID());
     mixParam = apvts.getRawParameterValue(ids::mix.getParamID());
     fallbackBpmParam = apvts.getRawParameterValue(ids::fallbackBpm.getParamID());
 }
 
-bool DuckProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+int CurveShaperProcessor::getDivisionIndex() const
+{
+    return static_cast<int>(divisionParam->load());
+}
+
+bool CurveShaperProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     const auto& out = layouts.getMainOutputChannelSet();
     if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
@@ -51,16 +58,14 @@ bool DuckProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
     return out == layouts.getMainInputChannelSet();
 }
 
-void DuckProcessor::prepareToPlay(double sampleRate, int)
+void CurveShaperProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    engine.prepare(sampleRate);
-    engine.reset(mixParam->load());
-    engine.setMix(mixParam->load());
+    prepareEffect(sampleRate, samplesPerBlock, mixParam->load());
     tracker.prepare(sampleRate);
     tableVersion = 0;
 }
 
-void DuckProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void CurveShaperProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
 
@@ -68,49 +73,24 @@ void DuckProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
         buffer.clear(ch, 0, buffer.getNumSamples());
 
     if (curveState.fetchTable(localTable, tableVersion))
-        engine.setTable(localTable);
+        curveTableChanged(localTable);
 
-    TransportInfo transport;
-    if (auto* playHead = getPlayHead())
-    {
-        if (const auto position = playHead->getPosition())
-        {
-            transport.playing = position->getIsPlaying();
-            if (const auto bpm = position->getBpm())
-            {
-                transport.hasBpm = true;
-                transport.bpm = *bpm;
-            }
-            if (const auto ppq = position->getPpqPosition())
-            {
-                transport.hasPpq = true;
-                transport.ppq = *ppq;
-            }
-        }
-    }
-
+    const auto transport = readTransport(getPlayHead());
     const auto division = divisionFromIndex(static_cast<int>(divisionParam->load()));
     const auto block = tracker.beginBlock(transport, division, fallbackBpmParam->load(), buffer.getNumSamples());
     syncSource.store(static_cast<int>(block.source), std::memory_order_relaxed);
 
-    engine.setMix(mixParam->load());
-    engine.process(buffer.getArrayOfWritePointers(), juce::jmin(buffer.getNumChannels(), getTotalNumOutputChannels()),
-                   buffer.getNumSamples(), block.startPhase, block.increment);
+    renderCycle(buffer, {block.startPhase, block.increment, mixParam->load()});
 }
 
-juce::AudioProcessorEditor* DuckProcessor::createEditor()
-{
-    return new DuckEditor(*this);
-}
-
-void DuckProcessor::getStateInformation(juce::MemoryBlock& destData)
+void CurveShaperProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     const auto state = apvts.copyState();
     if (const auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
 
-void DuckProcessor::setStateInformation(const void* data, int sizeInBytes)
+void CurveShaperProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (const auto xml = getXmlFromBinary(data, sizeInBytes))
     {
@@ -122,9 +102,4 @@ void DuckProcessor::setStateInformation(const void* data, int sizeInBytes)
         }
     }
 }
-} // namespace duck
-
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
-{
-    return new duck::DuckProcessor();
-}
+} // namespace animalaudio::core

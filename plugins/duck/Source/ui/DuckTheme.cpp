@@ -1,11 +1,10 @@
-#pragma once
+#include "DuckTheme.h"
 
-#include <animalaudio/ui/Palette.h>
+#include "DuckMotif.h"
 
 namespace duck::ui
 {
-/** Duck theme: warm charcoal "pond at dusk" with rubber-duck yellow and bill orange. */
-inline animalaudio::ui::Palette makePalette()
+animalaudio::ui::Palette makePalette()
 {
     animalaudio::ui::Palette p;
     p.background = juce::Colour(0xff1a1610);
@@ -17,15 +16,18 @@ inline animalaudio::ui::Palette makePalette()
     p.accent = juce::Colour(0xffffcb1f);    // duck yellow
     p.accentAlt = juce::Colour(0xffff8a1f); // bill orange
     p.onAccent = juce::Colour(0xff1f1a0e);
+    p.detail = juce::Colour(0xffff7a1a);  // bill
+    p.ambient = juce::Colour(0xff4fb6d9); // pond water
     return p;
 }
 
-inline juce::Colour waterColour()
+animalaudio::ui::Theme makeTheme()
 {
-    return juce::Colour(0xff4fb6d9);
-}
-inline juce::Colour billColour()
-{
-    return juce::Colour(0xffff7a1a);
+    animalaudio::ui::Theme theme;
+    theme.palette = makePalette();
+    theme.name = "DUCK";
+    theme.tagline = "VOLUME SHAPER";
+    theme.motif = std::make_shared<DuckMotif>();
+    return theme;
 }
 } // namespace duck::ui

@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../PluginProcessor.h"
+#include "Theme.h"
 
-#include <animalaudio/ui/Palette.h>
+#include <animalaudio/core/CurveShaperProcessor.h>
 
-namespace duck::ui
+namespace animalaudio::ui
 {
 /**
  * Interactive curve editor.
@@ -12,13 +12,13 @@ namespace duck::ui
  *   drag a diamond handle -> bend the segment
  *   double-click empty    -> add a node        double-click / right-click node -> delete it
  *   double-click diamond  -> straighten the segment
- * A rubber duck rides the curve at the current playhead phase, and the signal level (post-duck) is
+ * The theme's mascot rides the curve at the current playhead phase, and the signal level (post-duck) is
  * drawn behind the curve as a faint scope.
  */
 class CurveEditor : public juce::Component, private juce::ChangeListener, private juce::Timer
 {
 public:
-    CurveEditor(DuckProcessor& processor, const animalaudio::ui::Palette& palette);
+    CurveEditor(core::CurveShaperProcessor& processor, const Theme& theme);
     ~CurveEditor() override;
 
     void paint(juce::Graphics& g) override;
@@ -62,9 +62,10 @@ private:
     void changeListenerCallback(juce::ChangeBroadcaster*) override;
     void timerCallback() override;
 
-    DuckProcessor& processor;
-    animalaudio::ui::Palette colours;
-    animalaudio::dsp::ShapeCurve curve;
+    core::CurveShaperProcessor& processor;
+    Theme theme;
+    Palette colours;
+    dsp::ShapeCurve curve;
     Hit hovered;
     Hit dragging;
     float phaseOverride = -1.0f;
@@ -72,4 +73,4 @@ private:
     static constexpr float kNodeHitRadius = 10.0f;
     static constexpr float kBendHitRadius = 9.0f;
 };
-} // namespace duck::ui
+} // namespace animalaudio::ui

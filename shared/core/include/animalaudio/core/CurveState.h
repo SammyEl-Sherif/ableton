@@ -1,8 +1,6 @@
 #pragma once
 
-#include "dsp/DuckPresets.h"
-
-#include <animalaudio/dsp/ShapeCurve.h>
+#include <animalaudio/dsp/CurvePreset.h>
 
 #include <juce_data_structures/juce_data_structures.h>
 #include <juce_events/juce_events.h>
@@ -10,7 +8,7 @@
 #include <atomic>
 #include <cstdint>
 
-namespace duck
+namespace animalaudio::core
 {
 namespace tree
 {
@@ -23,10 +21,10 @@ inline const juce::Identifier bend{"bend"};
 } // namespace tree
 
 /** Serialises a curve as <Curve preset="0"><Node x= y= bend=/>...</Curve>. */
-juce::ValueTree curveToTree(const animalaudio::dsp::ShapeCurve& curve, int presetIndex);
+juce::ValueTree curveToTree(const dsp::ShapeCurve& curve, int presetIndex);
 
-/** Tolerant parser: bad/missing data yields a sanitised curve (never throws). */
-animalaudio::dsp::ShapeCurve curveFromTree(const juce::ValueTree& curveTree);
+/** Tolerant parser: bad/missing data yields `fallback` (sanitised nodes otherwise). Never throws. */
+dsp::ShapeCurve curveFromTree(const juce::ValueTree& curveTree, const dsp::ShapeCurve& fallback);
 
 /**
  * Stores the editable curve inside a parent ValueTree (the APVTS state) so it is saved/restored
@@ -39,23 +37,24 @@ animalaudio::dsp::ShapeCurve curveFromTree(const juce::ValueTree& curveTree);
 class CurveState : public juce::ChangeBroadcaster, private juce::ValueTree::Listener
 {
 public:
-    /** `stateRoot` must outlive this object and is held by reference: APVTS::replaceState() reassigns
-        the handle, and we need to follow it. */
-    explicit CurveState(juce::ValueTree& stateRoot);
+    /** `stateRoot` is held by reference (APVTS::replaceState() reassigns the handle and we must follow
+        it); `presets` must outlive this object and be non-empty, entry 0 is the default curve. */
+    CurveState(juce::ValueTree& stateRoot, const dsp::CurvePresetList& presets);
     ~CurveState() override;
 
     /** Creates the Curve child with the default preset if the state doesn't have one. */
     void ensureExists();
 
-    animalaudio::dsp::ShapeCurve getCurve() const;
+    dsp::ShapeCurve getCurve() const;
     int getPresetIndex() const;
+    const dsp::CurvePresetList& getPresets() const noexcept { return presets; }
 
     /** presetIndex = -1 marks the curve as custom. */
-    void setCurve(const animalaudio::dsp::ShapeCurve& curve, int presetIndex = -1);
+    void setCurve(const dsp::ShapeCurve& curve, int presetIndex = -1);
     void loadPreset(int index);
 
     /** Audio thread. Returns true (and fills `destination`) if a newer table was available. */
-    bool fetchTable(animalaudio::dsp::CurveTable& destination, std::uint64_t& knownVersion) noexcept;
+    bool fetchTable(dsp::CurveTable& destination, std::uint64_t& knownVersion) noexcept;
 
 private:
     void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) override;
@@ -68,10 +67,11 @@ private:
     void republish();
 
     juce::ValueTree& root;
+    const dsp::CurvePresetList& presets;
     bool batching = false;
 
     juce::SpinLock lock;
-    animalaudio::dsp::CurveTable published;
+    dsp::CurveTable published;
     std::uint64_t version = 1;
 };
-} // namespace duck
+} // namespace animalaudio::core

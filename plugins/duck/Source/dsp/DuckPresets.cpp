@@ -2,11 +2,11 @@
 
 namespace duck
 {
-const std::vector<CurvePreset>& getPresets()
+const animalaudio::dsp::CurvePresetList& getPresets()
 {
     using N = animalaudio::dsp::ShapeCurve::Node;
 
-    static const std::vector<CurvePreset> presets = {
+    static const animalaudio::dsp::CurvePresetList presets = {
         // Row 1: full-depth ducks
         {"Classic Duck", {N{0.0f, 0.0f, -0.55f}, N{1.0f, 1.0f, 0.0f}}},
         {"Quick Bill", {N{0.0f, 0.0f, -0.9f}, N{0.55f, 1.0f, 0.0f}, N{1.0f, 1.0f, 0.0f}}},

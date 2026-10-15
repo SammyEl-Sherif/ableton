@@ -1,11 +1,9 @@
 set(DUCK_SOURCES
-    Source/CurveState.cpp
-    Source/PluginEditor.cpp
-    Source/PluginProcessor.cpp
+    Source/DuckEditor.cpp
+    Source/DuckProcessor.cpp
     Source/dsp/DuckPresets.cpp
-    Source/ui/CurveEditor.cpp
-    Source/ui/DuckArt.cpp
-    Source/ui/DuckKnob.cpp)
+    Source/ui/DuckMotif.cpp
+    Source/ui/DuckTheme.cpp)
 
 aa_add_plugin(Duck
     PRODUCT_NAME "Duck"
@@ -16,24 +14,13 @@ aa_add_plugin(Duck
 target_include_directories(Duck PRIVATE Source)
 
 if(AA_BUILD_TESTS)
-    # Logic tests (engine, curve state, processor) plus a headless UI render (set AA_SCREENSHOT_DIR to write PNGs).
-    add_executable(DuckTests
-        tests/DuckEngineTests.cpp
-        tests/DivisionSelectorTests.cpp
-        tests/DuckPresetTests.cpp
-        tests/CurveStateTests.cpp
-        tests/ProcessorTests.cpp
-        tests/ScreenshotTests.cpp
-        ${DUCK_SOURCES})
+    # The standard shaper-plugin suites (shared/testing) run against Duck's own processor and editor.
+    # Set AA_SCREENSHOT_DIR to also write the headless UI renders as PNGs.
+    add_executable(DuckTests tests/DuckTests.cpp ${DUCK_SOURCES})
     target_include_directories(DuckTests PRIVATE Source)
-    target_compile_definitions(DuckTests PRIVATE
-        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1 JUCE_MODAL_LOOPS_PERMITTED=1)
     target_link_libraries(DuckTests PRIVATE
-        animalaudio::ui
-        animalaudio::dsp
-        juce::juce_audio_utils
+        animalaudio::testing
         juce::juce_recommended_config_flags
-        juce::juce_recommended_warning_flags
-        Catch2::Catch2WithMain)
+        juce::juce_recommended_warning_flags)
     catch_discover_tests(DuckTests TEST_PREFIX "duck.")
 endif()

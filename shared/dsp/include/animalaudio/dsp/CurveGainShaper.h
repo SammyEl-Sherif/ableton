@@ -1,29 +1,32 @@
 #pragma once
 
-#include <animalaudio/dsp/ShapeCurve.h>
-#include <animalaudio/dsp/Smoothing.h>
+#include "CycleScope.h"
+#include "ShapeCurve.h"
+#include "Smoothing.h"
 
 #include <algorithm>
-#include <array>
-#include <atomic>
 #include <cmath>
 
-namespace duck
+namespace animalaudio::dsp
 {
 /**
- * The ducking DSP. JUCE-free and allocation-free after construction so it can be unit tested and
- * run on the audio thread.
+ * Tempo-synced gain shaper: a baked curve (1 = unity, 0 = silent) sampled at the cycle phase, scaled
+ * by `mix`, then declicked. This is Duck's engine; plugins whose effect is "a curve drives a gain" use
+ * it directly, others copy its structure (table lookup + smoothers + CycleScope) around their own DSP.
+ * JUCE-free and allocation-free after construction.
  *
- * Per sample:  curveGain = table(phase)          (1 = unity, 0 = fully ducked)
+ * Per sample:  curveGain = table(phase)
  *              target    = 1 - mix * (1 - curveGain)
  *              gain      = one-pole(target)       (declick: ~0.7 ms time constant)
  */
-class DuckEngine
+class CurveGainShaper
 {
 public:
     static constexpr int kScopeBins = 128;
     static constexpr double kGainSmoothingMs = 0.7;
     static constexpr double kMixSmoothingMs = 15.0;
+
+    using Scope = CycleScope<kScopeBins>;
 
     void prepare(double newSampleRate)
     {
@@ -37,16 +40,14 @@ public:
     {
         mixSmoother.reset(mix);
         gainSmoother.reset(1.0f);
-        for (auto& bin : scope)
-            bin.store(0.0f, std::memory_order_relaxed);
+        scope.clear();
     }
 
-    /** Replace the curve table (called on the audio thread with a table already copied there). */
-    void setTable(const animalaudio::dsp::CurveTable& newTable) noexcept { table = newTable; }
+    void setTable(const CurveTable& newTable) noexcept { table = newTable; }
 
     void setMix(float mix) noexcept { mixSmoother.setTarget(std::min(std::max(mix, 0.0f), 1.0f)); }
 
-    /** Applies ducking in place. `startPhase` in [0,1), `increment` in cycles/sample. */
+    /** Applies the shaped gain in place. `startPhase` in [0,1), `increment` in cycles/sample. */
     void process(float* const* channels, int numChannels, int numSamples, double startPhase, double increment) noexcept
     {
         double phase = startPhase;
@@ -66,31 +67,25 @@ public:
                 peak = std::max(peak, std::abs(out));
             }
 
-            const int bin = std::min(static_cast<int>(phase * kScopeBins), kScopeBins - 1);
-            const float old = scope[static_cast<std::size_t>(bin)].load(std::memory_order_relaxed);
-            scope[static_cast<std::size_t>(bin)].store(std::max(peak, old * 0.9995f), std::memory_order_relaxed);
+            scope.push(phase, peak);
 
             phase += increment;
             if (phase >= 1.0)
                 phase -= std::floor(phase);
         }
 
-        displayPhase.store(static_cast<float>(phase), std::memory_order_relaxed);
+        scope.setPhase(phase);
     }
 
-    float getDisplayPhase() const noexcept { return displayPhase.load(std::memory_order_relaxed); }
-    float getScopeBin(int index) const noexcept
-    {
-        return scope[static_cast<std::size_t>(index)].load(std::memory_order_relaxed);
-    }
-
+    const Scope& getScope() const noexcept { return scope; }
+    float getDisplayPhase() const noexcept { return scope.getPhase(); }
+    float getScopeBin(int index) const noexcept { return scope.getBin(index); }
     float getCurrentGain() const noexcept { return gainSmoother.getCurrent(); }
 
 private:
-    animalaudio::dsp::CurveTable table;
-    animalaudio::dsp::OnePoleSmoother gainSmoother;
-    animalaudio::dsp::OnePoleSmoother mixSmoother;
-    std::atomic<float> displayPhase{0.0f};
-    std::array<std::atomic<float>, kScopeBins> scope{};
+    CurveTable table;
+    OnePoleSmoother gainSmoother;
+    OnePoleSmoother mixSmoother;
+    Scope scope;
 };
-} // namespace duck
+} // namespace animalaudio::dsp

@@ -57,6 +57,7 @@ function(aa_add_plugin target)
     target_link_libraries(${target}
         PRIVATE
             animalaudio::ui
+            animalaudio::core
             animalaudio::dsp
             juce::juce_audio_utils
         PUBLIC

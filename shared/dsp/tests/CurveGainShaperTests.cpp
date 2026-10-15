@@ -1,5 +1,4 @@
-#include "dsp/DuckEngine.h"
-
+#include <animalaudio/dsp/CurveGainShaper.h>
 #include <animalaudio/dsp/TempoSync.h>
 
 #include <catch2/catch_approx.hpp>
@@ -39,7 +38,7 @@ struct Render
     std::vector<float> out;
 };
 
-Render renderConstant(duck::DuckEngine& engine, int numSamples, double startPhase, double inc, float input = 1.0f)
+Render renderConstant(CurveGainShaper& engine, int numSamples, double startPhase, double inc, float input = 1.0f)
 {
     Render r;
     r.out.assign(static_cast<std::size_t>(numSamples), input);
@@ -51,7 +50,7 @@ Render renderConstant(duck::DuckEngine& engine, int numSamples, double startPhas
 
 TEST_CASE("Mix 0 is a bit-exact bypass")
 {
-    duck::DuckEngine engine;
+    CurveGainShaper engine;
     engine.prepare(48000.0);
     engine.setTable(makeTable(duckCurve()));
     engine.reset(0.0f);
@@ -65,7 +64,7 @@ TEST_CASE("Mix 0 is a bit-exact bypass")
 
 TEST_CASE("Full mix drives gain to the curve minimum, and never exceeds unity")
 {
-    duck::DuckEngine engine;
+    CurveGainShaper engine;
     engine.prepare(48000.0);
     engine.setTable(makeTable(duckCurve()));
     engine.reset(1.0f);
@@ -86,7 +85,7 @@ TEST_CASE("Full mix drives gain to the curve minimum, and never exceeds unity")
 
 TEST_CASE("Half mix limits the depth of the duck")
 {
-    duck::DuckEngine engine;
+    CurveGainShaper engine;
     engine.prepare(48000.0);
     engine.setTable(makeTable(duckCurve()));
     engine.reset(0.5f);
@@ -100,7 +99,7 @@ TEST_CASE("Half mix limits the depth of the duck")
 
 TEST_CASE("Gain changes are click-free even for a hard gate curve")
 {
-    duck::DuckEngine engine;
+    CurveGainShaper engine;
     engine.prepare(48000.0);
     engine.setTable(makeTable(gateCurve()));
     engine.reset(1.0f);
@@ -118,7 +117,7 @@ TEST_CASE("Gain changes are click-free even for a hard gate curve")
 
 TEST_CASE("Ducking is periodic at the synced rate: minima every beat at 120 BPM / 48 kHz")
 {
-    duck::DuckEngine engine;
+    CurveGainShaper engine;
     engine.prepare(48000.0);
     engine.setTable(makeTable(duckCurve()));
     engine.reset(1.0f);
@@ -139,7 +138,7 @@ TEST_CASE("Different divisions change the ducking rate")
 {
     auto countDucks = [](Division d)
     {
-        duck::DuckEngine engine;
+        CurveGainShaper engine;
         engine.prepare(48000.0);
         engine.setTable(makeTable(duckCurve()));
         engine.reset(1.0f);
@@ -171,7 +170,7 @@ TEST_CASE("Block-size independence")
 {
     auto render = [](int blockSize)
     {
-        duck::DuckEngine engine;
+        CurveGainShaper engine;
         engine.prepare(44100.0);
         engine.setTable(makeTable(duckCurve()));
         engine.reset(0.8f);
@@ -200,7 +199,7 @@ TEST_CASE("Block-size independence")
 
 TEST_CASE("Stereo channels receive identical gain")
 {
-    duck::DuckEngine engine;
+    CurveGainShaper engine;
     engine.prepare(48000.0);
     engine.setTable(makeTable(duckCurve()));
     engine.reset(1.0f);
@@ -215,7 +214,7 @@ TEST_CASE("Stereo channels receive identical gain")
 
 TEST_CASE("Engine publishes its playhead phase and scope")
 {
-    duck::DuckEngine engine;
+    CurveGainShaper engine;
     engine.prepare(48000.0);
     engine.setTable(makeTable(duckCurve()));
     engine.reset(1.0f);
@@ -223,5 +222,5 @@ TEST_CASE("Engine publishes its playhead phase and scope")
 
     renderConstant(engine, 12000, 0.0, 1.0 / 24000.0);
     REQUIRE(engine.getDisplayPhase() == Approx(0.5f).margin(1.0e-3f));
-    REQUIRE(engine.getScopeBin(duck::DuckEngine::kScopeBins / 4) > 0.0f);
+    REQUIRE(engine.getScopeBin(CurveGainShaper::kScopeBins / 4) > 0.0f);
 }
