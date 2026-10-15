@@ -1,0 +1,13 @@
+---
+description: Animal Audio monorepo overview, build/test commands and branding
+alwaysApply: true
+---
+
+Read `AGENTS.md` at the repo root first; it is the source of truth (layout, commands, conventions, branding,
+adding a plugin). Keep it updated when you change those things.
+
+- Stack: JUCE 8 + CMake + C++17, VST3 plugins in `plugins/<name>/`, shared code in `shared/dsp` (JUCE-free) and `shared/ui`.
+- Build/test: `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build --output-on-failure`
+- New plugin: `python3 scripts/new_plugin.py <PascalName> --description "..."`
+- Branding: "Animal Audio" wordmark (`BrandBadge`) on every plugin UI; playful but clean; no third-party assets or branding.
+- Run `scripts/format.sh` before committing C++.

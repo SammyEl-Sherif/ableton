@@ -1,0 +1,11 @@
+---
+description: C++ style for this repo
+globs: "**/*.{h,cpp}"
+alwaysApply: false
+---
+
+- C++17, 4 spaces, Allman braces; `.clang-format` is authoritative (`scripts/format.sh`).
+- Shared code lives in `animalaudio::dsp` / `animalaudio::ui`; each plugin has its own lowercase namespace.
+- `shared/ui` is an INTERFACE library (sources compile into each plugin); do not make it a STATIC lib linking JUCE modules.
+- Parameter IDs and plugin codes are part of saved-state compatibility; never rename them after release.
+- Comments only for non-obvious intent or constraints; never narrate the code.

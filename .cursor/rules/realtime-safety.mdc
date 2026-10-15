@@ -1,0 +1,15 @@
+---
+description: Audio-thread rules for DSP and processor code
+globs: plugins/**/Source/**/*.{h,cpp},shared/dsp/**/*.h
+alwaysApply: false
+---
+
+Code reachable from `processBlock` must be realtime safe:
+
+- No allocation/deallocation (`new`, vector growth, `std::string`, `juce::String`, buffer resizing). Preallocate in `prepareToPlay`.
+- No blocking locks (`std::mutex`, `CriticalSection`). Atomics or `SpinLock` try-locks only; on failure keep previous data.
+- No I/O, logging, `DBG`, exceptions, or message-thread calls.
+- Smooth every audible gain/parameter change (`animalaudio::dsp::OnePoleSmoother`); assume hard-edged curves.
+- Use `juce::ScopedNoDenormals`; support any block size and sample rate; `getPlayHead()` may be null, always keep a free-run fallback.
+- Audio -> UI via relaxed atomics; UI -> audio via immutable snapshots (see `CurveState::fetchTable`).
+- Keep DSP JUCE-free where possible and cover it with Catch2 tests.
