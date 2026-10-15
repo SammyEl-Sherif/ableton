@@ -102,7 +102,8 @@ DuckEditor::DuckEditor(DuckProcessor& p)
         divisionButtons[static_cast<std::size_t>(i)] = std::move(b);
     }
     divisionAttachment = std::make_unique<juce::ParameterAttachment>(
-        *owner.apvts.getParameter(ids::division.getParamID()), [this](float) { refreshToggles(); });
+        *owner.apvts.getParameter(ids::division.getParamID()),
+        [this](float denormalisedIndex) { showDivision(juce::roundToInt(denormalisedIndex)); });
 
     prevButton = std::make_unique<PillButton>("Prev", palette);
     nextButton = std::make_unique<PillButton>("Next", palette);
@@ -148,11 +149,19 @@ DuckEditor::~DuckEditor()
     owner.getCurveState().removeChangeListener(this);
 }
 
+void DuckEditor::showDivision(int index)
+{
+    for (int i = 0; i < animalaudio::dsp::kNumDivisions; ++i)
+        divisionButtons[static_cast<std::size_t>(i)]->setToggleState(i == index, juce::dontSendNotification);
+}
+
 void DuckEditor::refreshToggles()
 {
-    const int division = juce::roundToInt(owner.apvts.getRawParameterValue(ids::division.getParamID())->load());
-    for (int i = 0; i < animalaudio::dsp::kNumDivisions; ++i)
-        divisionButtons[static_cast<std::size_t>(i)]->setToggleState(i == division, juce::dontSendNotification);
+    // Not getRawParameterValue(): listeners are notified in reverse registration order, so this can run
+    // before the APVTS has updated its raw atomic, which made the highlight lag one click behind.
+    if (const auto* division =
+            dynamic_cast<juce::AudioParameterChoice*>(owner.apvts.getParameter(ids::division.getParamID())))
+        showDivision(division->getIndex());
 
     const int preset = owner.getCurveState().getPresetIndex();
     for (int i = 0; i < kNumPresets; ++i)

@@ -19,6 +19,7 @@ if(AA_BUILD_TESTS)
     # Logic tests (engine, curve state, processor) plus a headless UI render (set AA_SCREENSHOT_DIR to write PNGs).
     add_executable(DuckTests
         tests/DuckEngineTests.cpp
+        tests/DivisionSelectorTests.cpp
         tests/DuckPresetTests.cpp
         tests/CurveStateTests.cpp
         tests/ProcessorTests.cpp
@@ -26,7 +27,7 @@ if(AA_BUILD_TESTS)
         ${DUCK_SOURCES})
     target_include_directories(DuckTests PRIVATE Source)
     target_compile_definitions(DuckTests PRIVATE
-        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1 JUCE_MODAL_LOOPS_PERMITTED=1)
     target_link_libraries(DuckTests PRIVATE
         animalaudio::ui
         animalaudio::dsp

@@ -135,3 +135,11 @@ the saved-state contract: never change them once released (bump a `ParameterID` 
   on Linux, macOS and Windows and uploads VST3 bundles as artifacts.
 - Don't commit `build/`, `*.vst3`, or IDE files (see `.gitignore`). README screenshots in `docs/images/` are
   committed on purpose.
+
+## Gotchas
+
+- `ParameterAttachment` / `SliderParameterAttachment` callbacks run in reverse listener-registration order, i.e. possibly
+  *before* the APVTS updates `getRawParameterValue()`. In UI callbacks use the value passed to the callback (or the
+  parameter itself, e.g. `AudioParameterChoice::getIndex()`), never the raw atomic. This caused Duck's division pills to
+  highlight one click late (regression tests in `plugins/duck/tests/DivisionSelectorTests.cpp`).
+- `Button::triggerClick()` is asynchronous; in tests pump the message loop (`JUCE_MODAL_LOOPS_PERMITTED=1` on test targets).

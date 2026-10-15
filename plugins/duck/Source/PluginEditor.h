@@ -25,6 +25,7 @@ public:
     static constexpr int kHeight = 470;
 
     ui::CurveEditor& getCurveEditor() noexcept { return curveEditor; }
+    juce::Button& getDivisionButton(int index) { return *divisionButtons[static_cast<std::size_t>(index)]; }
 
 private:
     class PresetButton;
@@ -33,6 +34,7 @@ private:
     void changeListenerCallback(juce::ChangeBroadcaster*) override;
     void stepPreset(int delta);
     void refreshToggles();
+    void showDivision(int index);
 
     DuckProcessor& owner;
     animalaudio::ui::Palette palette;
