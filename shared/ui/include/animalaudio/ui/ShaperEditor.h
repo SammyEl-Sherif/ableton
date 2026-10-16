@@ -34,6 +34,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
+    const Theme& getTheme() const noexcept { return theme; }
     CurveEditor& getCurveEditor() noexcept { return curveEditor; }
     ChoicePillRow& getDivisionRow() noexcept { return divisionRow; }
     juce::Button& getDivisionButton(int index) { return divisionRow.getPill(index); }
