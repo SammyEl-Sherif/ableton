@@ -7,6 +7,10 @@ PillButton::PillButton(const juce::String& text, const Palette& palette)
     , colours(palette)
 {
     setClickingTogglesState(false);
+    // Fire on mouse down from the event itself. On mouse up JUCE only clicks if the button still looks "down",
+    // and that state is re-read from the OS pointer whenever focus or enablement changes mid-click, so a
+    // host whose pointer coordinates differ from its event coordinates would silently swallow the click.
+    setTriggeredOnMouseDown(true);
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
 }
 

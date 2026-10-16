@@ -14,6 +14,7 @@ public:
     {
         setTooltip(getButtonText());
         setMouseCursor(juce::MouseCursor::PointingHandCursor);
+        setTriggeredOnMouseDown(true); // see PillButton: do not depend on state re-read from the OS pointer
     }
 
     void paintButton(juce::Graphics& g, bool over, bool down) override
