@@ -87,6 +87,16 @@ Or configure with `-DAA_COPY_PLUGINS_AFTER_BUILD=ON` to have the build copy it f
 enable *Preferences > Plug-Ins > Use VST3 Plug-In System Folders* and rescan. Duck is an audio effect:
 drop it on any audio track.
 
+## Release zips (animal.audio downloads)
+
+Mac builds for the website must be **Developer ID signed and notarized** before upload.
+
+1. Complete [docs/APPLE_DEVELOPER_SETUP.md](docs/APPLE_DEVELOPER_SETUP.md).
+2. Run `./scripts/release_mac_duck.sh` → `dist/releases/<version>/Duck-<version>-mac-vst3.zip`.
+3. Windows: `.\scripts\package_win_duck.ps1` after a Release build.
+
+Upload paths and Supabase steps live in the **animal-audio-web** repo: `docs/DOWNLOADS_LAUNCH.md`.
+
 ## Repository layout
 
 ```

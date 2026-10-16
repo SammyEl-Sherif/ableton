@@ -34,7 +34,7 @@ function(aa_add_plugin target)
     juce_add_plugin(${target}
         PRODUCT_NAME "${AA_PRODUCT_NAME}"
         COMPANY_NAME "Animal Audio"
-        COMPANY_WEBSITE "https://animalaudio.example"
+        COMPANY_WEBSITE "https://animal.audio"
         BUNDLE_ID "${AA_BUNDLE_ID}"
         PLUGIN_MANUFACTURER_CODE AnAu
         PLUGIN_CODE ${AA_PLUGIN_CODE}
