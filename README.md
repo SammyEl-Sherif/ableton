@@ -140,7 +140,7 @@ its own DSP. See [AGENTS.md](AGENTS.md) for the policy, conventions and realtime
 ## Status and caveats
 
 - Duck has been built as a real VST3 and exercised by unit/integration tests (DSP, tempo math, state
-  round-trip, mouse editing, headless UI render) on Linux. The Linux VST3 also passes pluginval at strictness 10. It has not yet been loaded in Ableton Live
+  round-trip, mouse editing, headless UI render, real synthetic mouse events through a native window at several UI scales) on Linux. The Linux VST3 also passes pluginval at strictness 10. It has not yet been loaded in Ableton Live
   or validated with Steinberg's own `validator`; macOS and Windows builds are configured in CI but
   unverified until the first workflow run.
 - The repository has no open-source license yet (see [LICENSE](LICENSE)). JUCE and the VST3 SDK are

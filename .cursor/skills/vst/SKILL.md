@@ -150,10 +150,10 @@ in two plugins; shared code mentioning a plugin or an animal by name.
 
 ## 7. Tests
 
-- Keep the two macro lines in `tests/<Name>Tests.cpp` (`AA_SHAPER_PLUGIN_TESTS`, and
+- Keep the macro lines in `tests/<Name>Tests.cpp` (`AA_SHAPER_PLUGIN_TESTS`, `AA_REAL_MOUSE_PLUGIN_TESTS`, and
   `AA_GAIN_SHAPER_PLUGIN_TESTS` while the processor is a `GainShaperProcessor`). They cover parameters, state
-  round-trip, division selector (hit-test, click, automation), preset panel, curve mouse editing and a
-  headless render.
+  round-trip, division selector (hit-test, click, automation), preset panel, curve mouse editing, a headless render,
+  and real mouse events through a native window at several UI scales (run ctest under `xvfb-run -a` on Linux).
 - Add tests for everything plugin-specific: your DSP (JUCE-free where possible), extra parameters and
   their state round-trip, anything you changed in the shared libs (tests belong next to the shared code).
 - A regression found in one plugin becomes a shared suite test, so every plugin gets it.
