@@ -62,8 +62,12 @@ scripts/verify_plugin.sh Duck                               # build + ctest + sc
 
 - Offline / cached deps: `-DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE -DFETCHCONTENT_SOURCE_DIR_CATCH2=/path/to/Catch2`.
 - Options: `AA_BUILD_TESTS` (ON), `AA_BUILD_STANDALONE` (OFF), `AA_COPY_PLUGINS_AFTER_BUILD` (OFF), `AA_PLUGINS="duck;..."`.
-- Linux needs the X11/ALSA/freetype dev packages listed in README.md. Tests do not need a display: UI is
-  rendered to an `Image` via `createComponentSnapshot`. (CI wraps ctest in `xvfb-run` anyway.)
+- Linux needs the X11/ALSA/freetype dev packages listed in README.md. Most tests do not need a display: UI is
+  rendered to an `Image` via `createComponentSnapshot`. The `real mouse` suite (`shared/testing/.../RealMouseSuite.h`,
+  `AA_REAL_MOUSE_PLUGIN_TESTS`) puts the editor in a native window and injects events through `ComponentPeer`, at several
+  editor/desktop scales; it needs a display, so run ctest as `xvfb-run -a ctest ...` on Linux (it skips without one) and
+  keep those tests serial (`RESOURCE_LOCK native_display` in each plugin's `catch_discover_tests`): they move the
+  real OS pointer, so two at once on one X server fight over it.
 - Screenshots for the README: `AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`.
   Regenerate and commit them whenever the Duck UI changes visibly.
 - Plugin validation: [pluginval](https://github.com/Tracktion/pluginval) (`xvfb-run -a pluginval --strictness-level 10 --validate-in-process <bundle>.vst3`);
@@ -189,4 +193,12 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
   *before* the APVTS updates `getRawParameterValue()`. In UI callbacks use the value passed to the callback (or the
   parameter itself, e.g. `AudioParameterChoice::getIndex()`), never the raw atomic. This caused Duck's division pills to
   highlight one click late (regression tests in the shared suites, `shared/testing`, `divisionPills*`).
+- JUCE buttons that fire on mouse *up* (`Button` default) only click if their state still says "down", and that state
+  is re-read from the **OS pointer** (`isMouseOver()`) whenever focus/enablement changes mid-click. If a host's pointer
+  coordinates differ from its event coordinates the click is silently dropped. Clickable shared widgets therefore use
+  `setTriggeredOnMouseDown(true)` (`PillButton`, preset thumbnails). Synthetic-event tests must also move the OS pointer
+  (`DesktopEditor::send` does), and a test with the pointer left elsewhere guards the regression.
+- A bare Xvfb (no window manager) has no ICCCM atoms and JUCE aborts with `BadAtom`; `prepareNativeWindows()`
+  (shared/testing) interns them and keeps a connection open. Test targets compile with `JUCE_USE_XSHM=0` because MIT-SHM
+  `X_ShmAttach` fails intermittently under `xvfb-run`.
 - `Button::triggerClick()` is asynchronous; in tests pump the message loop (`JUCE_MODAL_LOOPS_PERMITTED=1` on test targets).
