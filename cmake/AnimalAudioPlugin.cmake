@@ -4,12 +4,14 @@
 #     [DESCRIPTION  "..."]
 #     [IS_SYNTH FALSE]
 #     [BUNDLE_ID    com.animalaudio.duck]
+#     [VST3_CATEGORIES Fx EQ]     # default: Fx
 #     SOURCES       a.cpp b.cpp ...)
 #
 # Wraps juce_add_plugin with the Animal Audio defaults (manufacturer, VST3 only,
 # Ableton-friendly category, shared libs linked, warnings on).
 function(aa_add_plugin target)
-    cmake_parse_arguments(AA "" "PRODUCT_NAME;PLUGIN_CODE;DESCRIPTION;IS_SYNTH;BUNDLE_ID" "SOURCES" ${ARGN})
+    cmake_parse_arguments(AA "" "PRODUCT_NAME;PLUGIN_CODE;DESCRIPTION;IS_SYNTH;BUNDLE_ID" "SOURCES;VST3_CATEGORIES"
+                          ${ARGN})
 
     if(NOT AA_PRODUCT_NAME OR NOT AA_PLUGIN_CODE)
         message(FATAL_ERROR "aa_add_plugin(${target}): PRODUCT_NAME and PLUGIN_CODE are required")
@@ -19,6 +21,9 @@ function(aa_add_plugin target)
     endif()
     if(NOT AA_IS_SYNTH)
         set(AA_IS_SYNTH FALSE)
+    endif()
+    if(NOT AA_VST3_CATEGORIES)
+        set(AA_VST3_CATEGORIES Fx)
     endif()
     if(NOT AA_BUNDLE_ID)
         string(TOLOWER "${AA_PRODUCT_NAME}" _lower)
@@ -39,7 +44,7 @@ function(aa_add_plugin target)
         PLUGIN_MANUFACTURER_CODE AnAu
         PLUGIN_CODE ${AA_PLUGIN_CODE}
         FORMATS ${_formats}
-        VST3_CATEGORIES Fx
+        VST3_CATEGORIES ${AA_VST3_CATEGORIES}
         IS_SYNTH ${AA_IS_SYNTH}
         NEEDS_MIDI_INPUT FALSE
         NEEDS_MIDI_OUTPUT FALSE

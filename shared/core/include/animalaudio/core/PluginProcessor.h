@@ -5,16 +5,24 @@
 namespace animalaudio::core
 {
 /**
- * Base AudioProcessor for Animal Audio effects: stereo-in/stereo-out buses (mono/stereo, in == out), the
- * APVTS built from the subclass's parameter layout, one program, and state save/restore of the whole APVTS
- * ValueTree. Subclasses add DSP (prepareToPlay/processBlock) and the editor; extra state lives as children of
- * `apvts.state` and is fixed up in stateRestored().
+ * Base AudioProcessor for Animal Audio effects: stereo-in/stereo-out buses (mono/stereo, in == out), an optional
+ * side-chain input bus, the APVTS built from the subclass's parameter layout, one program, and state save/restore
+ * of the whole APVTS ValueTree. Subclasses add DSP (prepareToPlay/processBlock) and the editor; extra state lives
+ * as children of `apvts.state` and is fixed up in stateRestored().
  */
 class PluginProcessor : public juce::AudioProcessor
 {
 public:
+    /** `stereo`: a second input bus "Sidechain" (stereo by default; the host may make it mono or disable it). */
+    enum class SidechainInput
+    {
+        none,
+        stereo
+    };
+
     PluginProcessor(const juce::String& pluginName, const juce::Identifier& stateType,
-                    juce::AudioProcessorValueTreeState::ParameterLayout layout);
+                    juce::AudioProcessorValueTreeState::ParameterLayout layout,
+                    SidechainInput sidechain = SidechainInput::none);
 
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
     void releaseResources() override {}
@@ -40,6 +48,8 @@ protected:
     virtual void stateRestored() {}
 
 private:
+    static BusesProperties makeBuses(SidechainInput sidechain);
+
     juce::String pluginName;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
