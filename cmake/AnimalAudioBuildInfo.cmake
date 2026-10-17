@@ -8,12 +8,15 @@
 set(AA_BUILD_INFO_DIR "${CMAKE_BINARY_DIR}/generated")
 set(AA_BUILD_INFO_HEADER "${AA_BUILD_INFO_DIR}/animalaudio_build_info.h")
 
+# BYPRODUCTS lets Ninja re-check the header after this runs; without it the compile that includes the header is
+# judged up to date before the header changes, and the stamp lags one build behind a new commit.
 add_custom_target(aa_build_info ALL
     COMMAND ${CMAKE_COMMAND}
         -DOUT=${AA_BUILD_INFO_HEADER}
         -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DVERSION=${PROJECT_VERSION}
         -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake
+    BYPRODUCTS ${AA_BUILD_INFO_HEADER}
     COMMENT "Generating build stamp"
     VERBATIM)
 
