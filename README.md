@@ -45,6 +45,7 @@ and [AGENTS.md](AGENTS.md).
 | Plugin | What it does | Source | Status |
 | --- | --- | --- | --- |
 | **Duck** | Tempo-synced volume ducking with a draggable curve editor, 16 preset shapes and a big MIX knob | `plugins/duck` | Alpha: builds as VST3, all tests pass, passes pluginval level 10 on Linux; not yet tried in a real DAW |
+| **Quail** | 24-band dynamic EQ: 10 shapes up to 96 dB/oct, stereo/mid/side placement, side-chain and spectral (per-frequency) dynamics, pre/post/side-chain analyser | `plugins/quail` | Alpha: builds as VST3 on macOS, all its tests pass, passes pluginval level 10 on macOS; not yet tried in a real DAW |
 <!-- PLUGINS:END -->
 
 More animals are on the way. Adding one takes a single command (or the `/vst` agent skill), see [Adding a plugin](#adding-a-plugin).
@@ -75,6 +76,52 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
 > (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
+
+## Quail
+
+A precise, fast 24-band EQ that also listens: any band can turn itself down (or up) when its own signal or
+**another track** gets loud, either as a whole band or **frequency by frequency**. Make room for the vocal in
+the guitars only where and when the vocal sings.
+
+<p align="center">
+  <img src="docs/images/quail-ui.png" alt="Quail by Animal Audio" width="760">
+</p>
+
+- **24 bands, 10 shapes**: Bell, Low/High Shelf, Low/High Cut, Notch, Band Pass, Tilt Shelf, Flat Tilt and
+  All Pass, with slopes from 6 to 96 dB/oct; 10 Hz–30 kHz, ±30 dB, Q 0.025–40.
+- **Stereo placement** per band: Stereo, Left, Right, Mid or Side (the node shows `L`/`R`/`M`/`S`).
+- **Dynamic EQ**: switch on `DYNAMIC` and a band moves within its **RANGE** (±30 dB; drag the diamond under
+  the node) as its trigger crosses the **THRESHOLD**, set by hand or `AUTO` (follows the trigger's
+  average level). Attack 0.5–500 ms, release 5 ms–5 s. Cuts and boosts both work.
+- **Side chain**: `SIDE CHAIN` makes a band listen to Quail's side-chain input instead of its own band.
+  Duck the low end under the kick, dip the guitars' presence range while the vocal sings, or lift a
+  band when another part plays (positive range). In Live, pick the source track in the device's side-chain
+  (Audio From) section; the top bar shows whether a side chain is connected.
+- **Spectral dynamics**: `SPECTRAL` (bells and shelves) runs the band per FFT bin, so only the frequencies
+  where the trigger is loud move: a side-chained spectral band follows the vocal's harmonics as they change.
+  `DENSITY` smooths the trigger across frequency (0% = every bin on its own, 100% = the whole band
+  together); `TILT` adds 3 dB/oct to the trigger around 1 kHz so highs trigger as readily as lows.
+  `LOW`/`MEDIUM`/`HIGH` resolution trades frequency detail for latency (MEDIUM: 4096 samples, 85 ms at
+  48 kHz), which is reported to the host only while a spectral band is active. Without one, Quail adds
+  zero latency.
+- **Analyser**: `PRE`, `POST` and `SC` spectra; with the side chain shown, red columns mark **collisions**,
+  where your track and the side chain are both loud at the same frequency. Display range ±3/6/12/30 dB.
+- **Fast editing**: double-click to add a band (it becomes a cut near either end), drag nodes (Shift fine,
+  Alt for Q), scroll for Q, lasso and drag several bands at once, right-click for shape and placement menus,
+  double-click or Delete to remove. The floating panel follows the selected band; hold `SOLO` to hear just it.
+- **Output**: level, pan, phase invert, `AUTO GAIN` (keeps loudness about constant while you EQ) and
+  `SCALE` (0–200% of every band's gain).
+- **Clean**: an empty or flat EQ is a bit-exact pass-through, also after automation returns to flat; changes
+  of shape, slope or placement crossfade, every value glides, and the result does not depend on the buffer
+  size. Bypass is a soft crossfade to the latency-compensated dry signal.
+- **State**: all 439 parameters are automatable and saved with the set, along with the analyser options and
+  the window size (the editor is resizable).
+
+<p align="center">
+  <img src="docs/images/quail-ui-dynamic.png" alt="Quail with a self-triggered dynamic band selected" width="620">
+</p>
+
+> Rendered headlessly by `AA_SCREENSHOT_DIR=docs/images ./build/plugins/quail/QuailTests "quail: editor: renders*"`.
 
 ## Build
 
@@ -118,7 +165,7 @@ Build just one plugin: `cmake --build build --target Duck_VST3`. Restrict what i
 It overwrites the old copy, removes stale copies from the other folders, and on macOS clears quarantine and
 ad-hoc signs the bundle. `--list` shows every installed copy with its build stamp, `--uninstall` removes them,
 `--dry-run` previews. Alternatively configure with `-DAA_COPY_PLUGINS_AFTER_BUILD=ON` (`scripts/configure.sh` on
-macOS) to have each build copy its bundle. Duck is an audio effect: drop it on any audio track.
+macOS) to have each build copy its bundle. Duck and Quail are audio effects: drop them on any audio track.
 
 **Installing a CI build instead:** every CI run uploads `animal-audio-vst3-<OS>` (Actions > the run > Artifacts).
 They are unsigned: on macOS run `xattr -dr com.apple.quarantine <Plugin>.vst3` and
@@ -150,10 +197,11 @@ Upload paths and Supabase steps live in the **animal-audio-web** repo: `docs/DOW
 ```
 CMakeLists.txt          top level: fetches JUCE/Catch2, adds shared/ and every plugins/*
 cmake/                  FetchDependencies.cmake, AnimalAudioPlugin.cmake (aa_add_plugin)
-shared/dsp/             animalaudio::dsp  header-only C++17 DSP (smoothing, tempo sync, curves, gain engine) + tests
-shared/core/            animalaudio::core curve state, shaper processor base class (params, state, transport)
-shared/ui/              animalaudio::ui   Theme (palette + animal motif), the shaper editor and its widgets
-shared/testing/         animalaudio::testing  standard test suites every shaper plugin runs
+shared/dsp/             animalaudio::dsp  header-only C++17 DSP (smoothing, tempo sync, curves, gain engine, filter design,
+                        EQ bands, envelope follower, FFT, STFT, analyser) + tests
+shared/core/            animalaudio::core plugin processor base (params, state, optional side chain), curve state, shaper processor
+shared/ui/              animalaudio::ui   Theme (palette + animal motif), themed panels, the shaper editor and its widgets
+shared/testing/         animalaudio::testing  standard test suites every shaper plugin runs, native-window mouse helpers
 plugins/<name>/         one folder per plugin: only what is specific to it (presets, theme/motif, own DSP)
 templates/plugin/       starter used by scripts/new_plugin.py
 .cursor/skills/        the /vst and /setup skills (mirrored to .claude/skills/)
@@ -191,9 +239,15 @@ its own DSP. See [AGENTS.md](AGENTS.md) for the policy, conventions and realtime
   round-trip, mouse editing, headless UI render, real synthetic mouse events through a native window at several UI scales) on Linux. The Linux VST3 also passes pluginval at strictness 10. It has not yet been loaded in Ableton Live
   or validated with Steinberg's own `validator`; macOS and Windows builds are configured in CI but
   unverified until the first workflow run.
+- Quail was built and tested on macOS (arm64). Covered: drawn versus measured response for every shape;
+  side-chain and spectral ducking through the real side-chain bus; stereo placement; click-free changes;
+  block-size independence; latency reporting and bypass compensation; state; mouse editing; headless UI
+  render; pluginval at strictness 10. Its real-mouse test (native window, several UI scales) needs an unlocked
+  display: it was skipped on the Mac it was built on and is left to CI (Linux, Xvfb). It has not yet been
+  loaded in Ableton Live; Linux/Windows rely on CI.
 - The repository has no open-source license yet (see [LICENSE](LICENSE)). JUCE and the VST3 SDK are
   AGPL/GPL or commercially licensed, so decide on licensing before distributing binaries.
-- Duck is an original design inspired by the general idea of volume-shaper ducking tools. It does not
-  use any third-party branding or assets.
+- Duck is an original design inspired by the general idea of volume-shaper ducking tools; Quail by the
+  workflow of modern dynamic and spectral EQs. Neither uses any third-party branding, names or assets.
 
 <p align="center"><sub>Animal Audio</sub></p>

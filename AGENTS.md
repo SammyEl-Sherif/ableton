@@ -12,6 +12,7 @@ Stack: **JUCE 8 + CMake (C++17)**, Catch2 for tests. VST3 only (Standalone optio
 | Plugin | Folder | CMake target | Plugin code |
 | --- | --- | --- | --- |
 | Duck (volume ducking / shaper) | `plugins/duck` | `Duck` (`Duck_VST3`), tests: `DuckTests` | `Duck` |
+| Quail (24-band dynamic EQ, side chain, spectral dynamics) | `plugins/quail` | `Quail` (`Quail_VST3`), tests: `QuailTests` | `Quai` |
 
 New plugins: use the **`/vst <name or idea>`** skill (see [Creating a plugin with `/vst`](#creating-a-plugin-with-vst)).
 
@@ -19,29 +20,55 @@ New plugins: use the **`/vst <name or idea>`** skill (see [Creating a plugin wit
 
 ```
 CMakeLists.txt        options + FetchContent + auto-discovers plugins/*/CMakeLists.txt
-cmake/                FetchDependencies.cmake (JUCE/Catch2 pins), AnimalAudioPlugin.cmake (aa_add_plugin)
+cmake/                FetchDependencies.cmake (JUCE/Catch2 pins), AnimalAudioPlugin.cmake (aa_add_plugin [VST3_CATEGORIES])
 shared/dsp/           animalaudio::dsp  INTERFACE, pure C++17, NO JUCE. Tests in shared/dsp/tests
-  Smoothing.h         OnePoleSmoother (parameter/gain declick)
+  Smoothing.h         OnePoleSmoother (parameter/gain declick; settles exactly, isSettled())
   TempoSync.h         Division (1/8..1/1), beatsPerCycle, PhaseTracker (host-locked or free-run phase)
   ShapeCurve.h        node/bend curve (message thread) + CurveTable (baked LUT for the audio thread)
   CurvePreset.h       CurvePreset / CurvePresetList;  StandardPresets.h: the 16 stock shapes (plugin supplies names)
   CurveGainShaper.h   curve -> gain engine (declick, mix, scope feed);  CycleScope.h: audio->UI scope bins
+  SvfFilter.h         SvfCoefficients (one Simper SVF section: m0/m1/m2 mix, exact magnitudeAt) + SvfFilter
+  FilterDesign.h      FilterShape (10 shapes), kFilterSlopes (6..96 dB/oct), designFilter(FilterSpec) -> FilterCascade
+                      (Butterworth cuts/shelves, band-transformed bells/notch/band pass/all pass, tilts), exact response
+  EqBand.h            one band of any shape/slope: glides freq/gain/Q, crossfades shape/slope changes, fades in/out,
+                      per-sample dynamic gain offset; coefficient refresh grid kept across blocks
+  EnvelopeFollower.h  attack/release level follower (dynamics detectors)
+  Fft.h               radix-2 complex FFT (allocation-free after construction)
+  Stft.h              StftProcessor: streaming WOLA (Hann, hop N/4, latency N), extra analysed key channels
+  SampleFifo.h        lock-free SPSC audio->UI sample feed;  Spectrum.h: SpectrumAnalyser (Hann + Fft, UI side)
 shared/core/          animalaudio::core INTERFACE (sources compile into each plugin): JUCE but no GUI
+  PluginProcessor     base AudioProcessor of every effect: APVTS from a layout, mono/stereo in == out, optional
+                      stereo side-chain input bus (SidechainInput::stereo; mono/stereo/disabled accepted), one
+                      program, APVTS state save/restore (+ stateRestored() hook)
   CurveState          curve stored in the APVTS ValueTree + lock-free-ish publish to the audio thread
-  CurveShaperProcessor  base AudioProcessor: standard params (division, mix, fallbackBpm), state save/restore,
+  CurveShaperProcessor  PluginProcessor + standard params (division, mix, fallbackBpm), curve state,
                       transport + phase plumbing; GainShaperProcessor = same with CurveGainShaper DSP
   TransportReader.h   AudioPlayHead -> dsp::TransportInfo
 shared/ui/            animalaudio::ui   INTERFACE lib whose .cpp files compile into each plugin
   Palette.h           colour roles every widget draws from; makePaletteFromHue(); makeFont()
   Theme.h             Theme { Palette, name, tagline, Motif }; Motif = the animal (mascot, knob cap, ambient, decoration)
+  ThemedPanel.h       editor backdrop, side panel (motif ambient + decoration), title block (NAME, tagline, mascot), build stamp
   ShaperEditor        optional shared curve-shaper editor (Duck uses it at 820x470); not required for every plugin
-  BrandBadge, PillButton, ChoicePillRow, RotaryKnob/ThemedKnob, CurveEditor, CurvePresetPanel, Drawing.h
-shared/testing/       animalaudio::testing header-only Catch2 suites: AA_SHAPER_PLUGIN_TESTS, AA_GAIN_SHAPER_PLUGIN_TESTS
+  BrandBadge, PillButton, ChoicePillRow, RotaryKnob (setArcOrigin for bipolar)/ThemedKnob, CurveEditor,
+  CurvePresetPanel, Drawing.h
+shared/testing/       animalaudio::testing header-only Catch2 suites: AA_SHAPER_PLUGIN_TESTS, AA_GAIN_SHAPER_PLUGIN_TESTS,
+                      AA_REAL_MOUSE_PLUGIN_TESTS; TestKit.h, RealMouseSuite.h (DesktopEditor), prepareNativeWindows()
 plugins/duck/         only what is Duck-specific:
   Source/             DuckProcessor (GainShaperProcessor + presets), DuckEditor (ShaperEditor + DuckTheme)
   Source/dsp/         DuckPresets (names for the standard shapes)
   Source/ui/          DuckTheme (palette, kThemeHue), DuckMotif (rubber duck, duck-head knob cap, feathers)
   tests/              DuckTests.cpp = the two shared suite macros
+plugins/quail/        custom processor + editor (not the shaper stack):
+  Source/             QuailProcessor (PluginProcessor + side chain, latency, 3 analyser FIFOs, "QuailUi" state),
+                      QuailParameters (IDs, ranges, ParameterSet -> dsp::Settings), QuailEditor (resizable)
+  Source/dsp/         QuailSettings.h (Settings, filterSpec, bandResponseDb, dynamics curve, auto gain estimate),
+                      QuailEngine (24 EqBands in L/R + M/S stages, detectors, solo, output, bypass),
+                      QuailSpectral (per-bin spectral dynamics on the Stft frames + display data)
+  Source/ui/          QuailTheme (palette, kThemeHue, band/placement colours), QuailMotif (quail, plume knob pointer,
+                      feather scales), EqDisplay (analyser + curves + nodes + mouse), BandPanel, BandActions
+                      (parameter gestures), Widgets (MenuPill, ValueChip, QuailKnob, ThresholdBar, OutputMeter)
+  tests/              QuailDspTests (engine), QuailProcessorTests (params, buses, latency, state),
+                      QuailEditorTests (mouse editing, panel, persistence, headless render, real mouse)
 templates/plugin/     starter copied by scripts/new_plugin.py (placeholders __NAME__, __NAME_LOWER__, __HUE__, ...)
 .cursor/skills/       the /vst and /setup skills (canonical);  .claude/skills/ holds copies made by scripts/sync_skills.sh
 scripts/              new_plugin.py, install_plugins.py (+ tests/), verify_plugin.sh, format.sh, sync_skills.sh, check_repo.sh
@@ -72,11 +99,14 @@ scripts/verify_plugin.sh Duck                               # build + ctest + sc
   `AA_REAL_MOUSE_PLUGIN_TESTS`) puts the editor in a native window and injects events through `ComponentPeer`, at several
   editor/desktop scales; it needs a display, so run ctest as `xvfb-run -a ctest ...` on Linux (it skips without one) and
   keep those tests serial (`RESOURCE_LOCK native_display` in each plugin's `catch_discover_tests`): they move the
-  real OS pointer, so two at once on one X server fight over it.
-- Screenshots for the README: `AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`.
-  Regenerate and commit them whenever the Duck UI changes visibly.
+  real OS pointer, so two at once on one X server fight over it. On macOS it also skips while the screen is locked
+  (`prepareNativeWindows()` checks): JUCE's mac peers only take events where their window is topmost, so a locked
+  screen would silently drop every injected click.
+- Screenshots for the README: `AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`
+  and `AA_SCREENSHOT_DIR=docs/images ./build/plugins/quail/QuailTests "quail: editor: renders*"`.
+  Regenerate and commit them whenever a plugin's UI changes visibly.
 - Plugin validation: [pluginval](https://github.com/Tracktion/pluginval) (`xvfb-run -a pluginval --strictness-level 10 --validate-in-process <bundle>.vst3`);
-  CI runs level 5 on Linux. Duck passes level 10 (incl. editor, automation, state restore).
+  CI runs level 5 on Linux. Duck passes level 10 (incl. editor, automation, state restore); Quail passes level 10 on macOS.
 - Format: `scripts/format.sh` (CI checks `clang-format --dry-run --Werror` on all `*.h`/`*.cpp`).
 - Script checks: `scripts/check_repo.sh` runs `bash -n` on `scripts/*.sh`, `py_compile` on the Python scripts, the
   install-script unit tests and, when `pwsh` exists (CI), the PowerShell parser on `scripts/*.ps1`.
@@ -200,6 +230,43 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
   slider. Right: division pills + sync status, curve editor, preset nav/flip/invert, 2x8 preset grid.
   Duck's `DuckMotif`: rubber duck mascot, duck head from above as knob cap (bill = pointer), feathers, pond ripples.
 
+## Quail specifics
+
+- Params (all version 1, saved-state contract, 439 in total). Globals: `outputGain` (±36 dB), `outputPan` (-100..100),
+  `gainScale` (0-200 %, scales every band's static gain), `autoGain`, `phaseInvert`, `bypass` (returned by
+  `getBypassParameter()`), `spectralRes` (Low/Medium/High). Per band `b<N><Suffix>` with N = 1..24 like the node
+  numbers: `Used`, `On`, `Freq` (10 Hz-30 kHz), `Gain` (±30), `Q` (0.025-40, 1 = neutral, Butterworth for cuts),
+  `Shape` (10), `Slope` (6..96 dB/oct), `Stereo` (Stereo/Left/Right/Mid/Side), `Range` (±30), `Dyn`, `Thresh`
+  (-80..0), `AutoThresh`, `Attack` (0.5-500 ms), `Release` (5-5000 ms), `SC`, `Spectral`, `Density` (0-100 %), `Tilt`.
+  dB values snap to exact tenths, so a flat band stays a bit-exact pass-through. A band exists while `Used` is on;
+  the UI creates/removes bands through `ui::BandActions` (every parameter with a host gesture).
+- DSP (`Source/dsp`, JUCE free; `QuailEngine` processes in 512-sample chunks):
+  - Stage 1 = Stereo/Left/Right bands; stage 2 (only while a Mid/Side band is active) = M/S encode, Mid/Side bands,
+    decode. Every band is a `dsp::EqBand`, so shape/slope/placement/on-off changes crossfade.
+  - Dynamics: the trigger is the band's own pre-EQ input or the side chain, through a band-pass isolating the band,
+    into an `EnvelopeFollower`; `dynamicGainDb()` (soft knee, full range at max(9, 1.5 |range|) dB over) feeds the
+    band a per-sample dB offset. Auto threshold = the trigger's long-term average + 3 dB.
+  - Spectral bands (bell/shelves with dynamics and `Spectral`) are handled per bin by `QuailSpectral` in a
+    `dsp::StftProcessor` frame after the filters: trigger spectrum smoothed across frequency (density) and time,
+    +3 dB/oct tilt around 1 kHz when `Tilt` is on, gain up to the range weighted by the band's own response. FFT
+    order 11/12/13 (Low/Medium/High) at 44.1/48 kHz, +1 above 75 kHz, +2 above 150 kHz; latency = FFT size, set by
+    `QuailProcessor::updateLatency()` on the message thread (10 Hz timer and `stateRestored()`), 0 with no spectral
+    band. Switching the stage on or off fades out, switches, waits one latency, fades in (a short dropout).
+  - Solo (held) crossfades (4 ms) to the band's isolating band pass. Output: gain (15 ms glide), pan (balance: the
+    side panned towards stays at unity, the other fades linearly), phase invert, auto gain (an estimate from the
+    static curve, ±24 dB). Bypass crossfades (8 ms) to the dry signal delayed by the current latency.
+  - `bandResponseDb()` runs the same `designFilter()` maths as the audio path: the drawn curves are the real response.
+- Processor: `core::PluginProcessor(..., SidechainInput::stereo)`, bus 1 = side chain (stereo, mono or disabled).
+  Three `SampleFifo`s (pre, post, side chain) feed `SpectrumAnalyser`s on the editor's 30 Hz timer. Editor state
+  (analyser toggles, display range, window size) lives in the `QuailUi` child of `apvts.state`.
+- UI (`QuailEditor`, resizable 960x600 to 2200x1400, default 1080x660): top bar (brand badge + build stamp, mascot,
+  QUAIL, band count, spectral resolution pills + latency, side-chain status, BYPASS); `EqDisplay` (analyser, band
+  fills, dashed range curves, live totals per placement, side-chain collisions, nodes with `L`/`R`/`M`/`S`/`SC`/`SPEC`
+  tags and range diamonds); the floating `BandPanel` for the selected band; bottom bar (analyser PRE/POST/SC, display
+  range, AUTO GAIN, PHASE, SCALE, PAN, OUTPUT); `OutputMeter` (L, R, SC). Mouse: double-click adds/removes, drag =
+  freq + gain (Q for shapes without gain), Alt = Q, Shift = fine, wheel = Q, lasso, right-click menus; Delete, Esc,
+  Cmd+A. Band colours cycle through `bandColour(i)`; tags use `placementColour`, collisions `collisionColour()`.
+
 ## Branding
 
 - Company: **Animal Audio** (wordmark "ANIMAL AUDIO" with a paw glyph, `animalaudio::ui::BrandBadge`;
@@ -208,8 +275,11 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
   motif per plugin drawn with `juce::Path` (no bitmap assets, no external fonts).
 - Every plugin has its own palette and its own animal (see "Theme" above); Duck's: yellow `#FFCB1F`, bill orange `#FF8A1F`/`#FF7A1A`, charcoal `#1A1610`/`#241F15`, water blue
   `#4FB6D9` (only as faint ripples). Motifs: rubber duck, bill, feather, water ripples.
+  Quail's (cleaner, more "instrument panel"): plume cyan `#3EE6F0`, coral `#FF9257`, cream face stripe `#F2D9A6`,
+  near-black navy `#070B10`/`#0D131B`/`#16202C`, steel blue `#5B7FA8` (faint feather scales). Motifs: California
+  quail with its curled topknot plume, the plume as knob pointer, scalloped feather scales, plume speckles.
 - Plugins may be *inspired by* existing tools' workflows but must not copy their branding, names, art or code.
-  (Duck's layout takes cues from volume-shaper plugins; nothing else.)
+  (Duck's layout takes cues from volume-shaper plugins, Quail's workflow from modern dynamic/spectral EQs; nothing else.)
 
 ## Git / PR conventions
 

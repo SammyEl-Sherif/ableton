@@ -72,12 +72,21 @@ Open this table and decide, for every piece the concept needs, whether it alread
 | editable curve model + realtime LUT | `dsp/ShapeCurve.h` `ShapeCurve`, `CurveTable` |
 | curve stored in plugin state, published to audio thread | `core/CurveState.h` |
 | curve to gain engine with scope data | `dsp/CurveGainShaper.h`, `dsp/CycleScope.h` |
+| any effect: APVTS, mono/stereo buses, programs, state save/restore | `core/PluginProcessor.h` (Quail derives from it) |
+| a side-chain input bus | `core::PluginProcessor(..., SidechainInput::stereo)`; read it with `getBusBuffer(buffer, true, 1)` |
 | standard params (division, mix, fallbackBpm), state save/restore, phase/transport plumbing | `core/CurveShaperProcessor.h` (`GainShaperProcessor` for gain effects) |
+| filters of any shape (bell, shelves, cuts, notch, band pass, tilts, all pass), 6-96 dB/oct, exact response | `dsp/FilterDesign.h` `designFilter(FilterSpec)` -> `FilterCascade`; one section: `dsp/SvfFilter.h` |
+| an EQ band that glides, crossfades shape changes and takes a dynamic gain offset | `dsp/EqBand.h` (block-size independent) |
+| level detection (attack/release) | `dsp/EnvelopeFollower.h` |
+| FFT, spectral (per-bin) processing with latency | `dsp/Fft.h`; `dsp/Stft.h` `StftProcessor` (WOLA, extra analysed key channels) |
+| audio -> UI sample feed, spectrum analyser | `dsp/SampleFifo.h` (lock-free SPSC), `dsp/Spectrum.h` `SpectrumAnalyser` |
 | 16 stock curve shapes | `dsp/StandardPresets.h` (you supply names) |
 | curve-shaper editor (optional) | `ui/ShaperEditor.h` + `ui/Theme.h` — use when the UX matches Duck; otherwise a custom editor |
 | branding + look | `BrandBadge`, `Theme` (`Palette` + `Motif`), `makePaletteFromHue`, `makeFont` |
-| widgets (mix and match) | `PillButton`, `ChoicePillRow`, `RotaryKnob`/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
-| test suites | `shared/testing`: `AA_SHAPER_PLUGIN_TESTS`, `AA_GAIN_SHAPER_PLUGIN_TESTS` |
+| editor backdrop, left-panel backdrop, title block (NAME + tagline + mascot), build stamp | `ui/ThemedPanel.h` (used by `ShaperEditor`; Quail uses the backdrop and build stamp) |
+| widgets (mix and match) | `PillButton`, `ChoicePillRow`, `RotaryKnob` (`setArcOrigin` for bipolar)/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
+| test suites | `shared/testing`: `AA_SHAPER_PLUGIN_TESTS`, `AA_GAIN_SHAPER_PLUGIN_TESTS`, `AA_REAL_MOUSE_PLUGIN_TESTS`; for a custom editor: `suite::buildStampIsShown<P, E>()`, `TestKit.h` (`click`, `writePngIfRequested`), `realmouse::DesktopEditor<E>` |
+| VST3 category other than plain `Fx` (e.g. an EQ) | `aa_add_plugin(... VST3_CATEGORIES Fx EQ ...)` |
 
 Skim the headers (`ls shared/*/include/animalaudio/*`) rather than trusting this table; it can be stale.
 If your effect needs something the base class does not offer (another parameter, a different DSP,
