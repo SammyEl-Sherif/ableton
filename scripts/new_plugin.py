@@ -3,11 +3,10 @@
 
     python3 scripts/new_plugin.py Wobble --description "Tempo-synced stereo wobbler"
 
-Creates plugins/wobble/ (CMake target `Wobble`, VST3 only): a working Duck-style shaper plugin built on
-the shared libs (shared/core processor base, shared/ui ShaperEditor driven by a Theme, shared/testing suites),
-with its own colour scheme (a hue far from every other plugin's `kThemeHue`) and a unique 4-character plugin
-code, plus a row in the README plugin table. The top-level CMake picks the folder up automatically; re-run
-cmake to build it.
+Creates plugins/wobble/ (CMake target `Wobble`, VST3 only): a green scaffold (GainShaperProcessor +
+ShaperEditor + Theme—the curve-shaper stack Duck uses). Replace editor/DSP in /vst when the concept needs
+a different layout; keep Theme, Motif, and BrandBadge. Picks a hue far from other plugins' `kThemeHue`, a
+unique 4-character plugin code, and adds a README table row. Re-run cmake to build.
 """
 
 from __future__ import annotations

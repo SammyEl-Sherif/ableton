@@ -7,7 +7,7 @@ alwaysApply: false
 - Second use of a piece of code => extract it to `shared/` first (own commit), then use it from both plugins.
   JUCE-free -> `shared/dsp`; JUCE without GUI -> `shared/core`; GUI -> `shared/ui`; test helpers -> `shared/testing`.
 - Never copy a file from another plugin, never `#include` across plugin folders (`scripts/check_repo.sh`).
-- Plugin-specific looks live only in `plugins/<name>/Source/ui/` as a `Theme` (palette) and a `Motif` (animal);
-  no colour literals elsewhere. Layout is `ui::ShaperEditor`'s and is shared.
+- Plugin-specific looks live only in `plugins/<name>/Source/ui/` as a `Theme` (palette), `Motif` (animal), and
+  editor layout; no colour literals elsewhere. `ShaperEditor` is optional shared UI for curve shapers.
 - Extractions must keep other plugins unchanged: tests pass, screenshots look the same, state identifiers identical.
 - Checklist and workflow: `.cursor/skills/vst/SKILL.md` (section "Reuse and extraction").

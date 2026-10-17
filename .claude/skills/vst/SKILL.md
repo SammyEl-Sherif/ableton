@@ -1,6 +1,6 @@
 ---
 name: vst
-description: Create a new Animal Audio VST3 plugin end to end in this monorepo (scaffold, DSP, animal-themed UI with its own palette, tests, build, pluginval, docs, PR). Use when the user runs /vst <name or idea> or asks for a new plugin in the series. Enforces the shared-library (DRY) policy.
+description: Create a new Animal Audio VST3 plugin end to end in this monorepo (scaffold, DSP, animal-themed design with its own palette and Motif—layout flexible, not Duck-cloned, tests, build all plugins and fix build errors, pluginval, docs, PR). Use when the user runs /vst <name or idea> or asks for a new plugin in the series. Enforces DRY and branding (BrandBadge, Theme, shared libraries).
 argument-hint: '<plugin name or idea, e.g. "Otter: a tempo-synced stereo wobbler">'
 ---
 
@@ -16,10 +16,12 @@ Non-negotiables:
 1. **DRY.** Never copy code from Duck (or any plugin). Reuse what is in `shared/`; when you need something
    that exists only in another plugin, or that you are about to write a second time, **extract it to
    `shared/` first** (see "Reuse and extraction"). Plugins must not include files from other plugins.
-2. **Same layout language, different personality.** Every plugin looks like a sibling of Duck (left panel
-   with brand badge, big NAME, mascot and big MIX knob; right side with division pills, a curve/visual
-   panel and a preset row) but has its **own colour scheme and its own animal**. Layout lives in
-   `ui::ShaperEditor`; colour and animal live in the plugin's `Theme`.
+2. **Animal-themed design; layout follows the concept.** What ties the series together is **Animal Audio
+   branding** (`BrandBadge`), the caps **animal name**, a distinct **`Theme` palette**, and a Path-drawn
+   **`Motif`** (mascot, ornaments, knob caps—wherever they fit). **UI layout is not prescribed:** compose
+   controls in a custom `<Name>Editor`, or reuse `ui::ShaperEditor` only when a tempo-synced curve shaper
+   (like Duck) is the right UX. Reuse shared widgets (`RotaryKnob`, `PillButton`, `Drawing.h`, …) and
+   `Palette` roles; do not copy Duck's panel structure unless the product is that kind of effect.
 3. **Realtime-safe, click-free, state-compatible.** Follow the audio-thread rules in AGENTS.md. Parameter
    IDs and plugin codes are saved-state contract.
 4. **Prove it.** Build, run ctest, run pluginval, look at the screenshot. Do not claim DAW validation you
@@ -42,10 +44,22 @@ git fetch origin main && git checkout -b <branch-per-repo-conventions> origin/ma
 python3 scripts/new_plugin.py <Name> --description "<one line>" [--hue <0-360>]
 ```
 
-This gives a plugin that already builds and passes the standard suites: a `GainShaperProcessor` (curve-driven
-gain, like Duck), `ShaperEditor` with a hue-derived palette, 16 placeholder presets and tests. The script
+This gives a **starter** that already builds: `GainShaperProcessor` + `ShaperEditor` + `Theme` (Duck's
+curve-shaper stack). Treat it as a green baseline—not a layout you must keep. Replace the editor and/or
+processor when the concept needs different controls or DSP; keep `Theme`, `Motif`, and `BrandBadge`. The script
 picks a hue far from the existing plugins and a unique 4-char plugin code. Run
 `scripts/verify_plugin.sh <Name> --no-screenshots` once now so you start from green.
+
+After scaffold, confirm the **whole monorepo still builds** (every plugin plus shared tests):
+
+```bash
+scripts/configure.sh    # macOS: optional; enables VST3 copy-after-build for local try-out
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+If anything fails, fix errors before adding DSP or UI (stale CMake cache → remove `build/` and reconfigure).
+Never leave the tree red: a new plugin must not break Duck or shared libraries.
 
 ## 3. Reuse survey (before writing any DSP/UI code)
 
@@ -60,17 +74,19 @@ Open this table and decide, for every piece the concept needs, whether it alread
 | curve to gain engine with scope data | `dsp/CurveGainShaper.h`, `dsp/CycleScope.h` |
 | standard params (division, mix, fallbackBpm), state save/restore, phase/transport plumbing | `core/CurveShaperProcessor.h` (`GainShaperProcessor` for gain effects) |
 | 16 stock curve shapes | `dsp/StandardPresets.h` (you supply names) |
-| whole editor | `ui/ShaperEditor.h` driven by `ui/Theme.h` (`Palette` + `Motif`) |
-| widgets | `BrandBadge`, `PillButton`, `ChoicePillRow`, `RotaryKnob`/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
+| curve-shaper editor (optional) | `ui/ShaperEditor.h` + `ui/Theme.h` — use when the UX matches Duck; otherwise a custom editor |
+| branding + look | `BrandBadge`, `Theme` (`Palette` + `Motif`), `makePaletteFromHue`, `makeFont` |
+| widgets (mix and match) | `PillButton`, `ChoicePillRow`, `RotaryKnob`/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
 | test suites | `shared/testing`: `AA_SHAPER_PLUGIN_TESTS`, `AA_GAIN_SHAPER_PLUGIN_TESTS` |
 
 Skim the headers (`ls shared/*/include/animalaudio/*`) rather than trusting this table; it can be stale.
 If your effect needs something the base class does not offer (another parameter, a different DSP,
 a second visual), prefer extending the shared class with a hook or a template over forking it.
 
-## 4. Theme: palette + animal (the "different colour scheme and animal")
+## 4. Theme: palette + animal (series identity)
 
-Everything plugin-specific about looks is in `plugins/<name>/Source/ui/<Name>Theme.{h,cpp}` and the Motif.
+Everything plugin-specific about **look and personality** is in `plugins/<name>/Source/ui/<Name>Theme.{h,cpp}`,
+the Motif, and your editor layout (custom or `ShaperEditor`).
 
 **Palette convention** (`animalaudio::ui::Palette`, roles are fixed, values are yours):
 
@@ -95,23 +111,27 @@ Rules:
 
 **Animal convention** (`ui::Motif` subclass in `Source/ui/<Name>Motif.{h,cpp}`, set `theme.motif`):
 
-- `drawMascot` (title mascot ~62 px and the small one riding the curve at the playhead), `drawKnobCap`
-  (the big MIX knob; the animal's face/nose is the value pointer), `drawAmbient` (animated background,
-  e.g. water for Duck, grass for a Rabbit, sound waves for a Bat), `drawDecoration` (faint ornaments).
-  All are optional; the defaults are a paw, a plain cap and ripples.
+- Implement the Motif hooks your UI uses: `drawMascot`, `drawKnobCap`, `drawAmbient`, `drawDecoration`
+  (`ShaperEditor` calls all of them; a custom editor uses what fits—hero mascot, animated background, knob
+  cap, corner ornaments). Defaults are a paw, plain cap, and ripples.
 - Draw with `juce::Path` and colours from the passed `Palette` only. No bitmaps, no external fonts.
 - Set `theme.name` (upper-case animal) and `theme.tagline` (what it does, e.g. "VOLUME SHAPER", "STEREO WOBBLER").
-- Rename the 16 presets in `<Name>Presets.cpp` with animal-flavoured names (keep the count and order).
-- Do **not** move or restyle the layout per plugin. If the shared layout is the limit (e.g. you need a
-  fourth control), extend `ShaperEditor` so all plugins gain it.
+- Every editor must show `BrandBadge` somewhere sensible.
+- Preset/curve names: animal-flavoured when you keep curve presets; drop or replace preset UI if the effect
+  is not curve-based.
+
+**Layout:** size and control placement are yours. Playful but clean (AGENTS.md **Branding**): dark base,
+saturated accent, rounded shapes, readable type. When a control pattern appears in two plugins, extract a
+shared widget to `shared/ui` instead of cloning layout code.
 
 ## 5. DSP
 
-- Curve-driven gain effect: nothing to write beyond presets/theme. Tune if the concept differs.
-- Other effects: derive from `core::CurveShaperProcessor` and implement `prepareEffect`,
-  `curveTableChanged`, `renderCycle` (it hands you phase, increment and mix per block). Put JUCE-free DSP in
-  `shared/dsp` if any other plugin could use it, otherwise `plugins/<name>/Source/dsp`, with numeric unit
-  tests (bounds, periodicity, click-freeness, block-size independence, mix 0 = bypass).
+- Scaffold still on `GainShaperProcessor`: tune presets/theme, or replace processor/editor when the concept
+  needs different parameters or algorithms.
+- Tempo-synced **curve shapers**: `core::CurveShaperProcessor` / `GainShaperProcessor`; optional `ShaperEditor`.
+- **Everything else**: `juce::AudioProcessor` or a new shared base in `core/`; JUCE-free DSP in `shared/dsp` or
+  `plugins/<name>/Source/dsp`, with numeric unit tests (bounds, click-freeness, block-size independence, bypass).
+- Extending `CurveShaperProcessor`: implement `prepareEffect`, `curveTableChanged`, `renderCycle`.
 - Extra parameters: add them in your processor with new, versioned `ParameterID`s; never rename the shared ones.
 - Audio-thread rules (AGENTS.md): no allocation/locks/I/O, smooth every audible change, denormals, any block
   size, transport may be absent.
@@ -150,10 +170,10 @@ in two plugins; shared code mentioning a plugin or an animal by name.
 
 ## 7. Tests
 
-- Keep the macro lines in `tests/<Name>Tests.cpp` (`AA_SHAPER_PLUGIN_TESTS`, `AA_REAL_MOUSE_PLUGIN_TESTS`, and
-  `AA_GAIN_SHAPER_PLUGIN_TESTS` while the processor is a `GainShaperProcessor`). They cover parameters, state
-  round-trip, division selector (hit-test, click, automation), preset panel, curve mouse editing, a headless render,
-  and real mouse events through a native window at several UI scales (run ctest under `xvfb-run -a` on Linux).
+- While the plugin still uses `GainShaperProcessor` + `ShaperEditor`, keep `AA_SHAPER_PLUGIN_TESTS`,
+  `AA_REAL_MOUSE_PLUGIN_TESTS`, and `AA_GAIN_SHAPER_PLUGIN_TESTS` in `tests/<Name>Tests.cpp` (real mouse suite:
+  run ctest under `xvfb-run -a` on Linux). After a custom processor/UI, replace or supplement with plugin-specific
+  tests (parameters, state round-trip, headless `createComponentSnapshot` of your editor).
 - Add tests for everything plugin-specific: your DSP (JUCE-free where possible), extra parameters and
   their state round-trip, anything you changed in the shared libs (tests belong next to the shared code).
 - A regression found in one plugin becomes a shared suite test, so every plugin gets it.
@@ -169,7 +189,10 @@ PLUGINVAL=/path/to/pluginval scripts/verify_plugin.sh <Name>
 headless screenshots to `docs/images/<name>-ui*.png` and runs pluginval at strictness 10 (download from
 https://github.com/Tracktion/pluginval/releases if missing; on Linux it needs `xvfb-run`).
 Then **look at** `docs/images/<name>-ui.png`: distinct palette from the other plugins, animal drawn,
-nothing clipped, text readable. Also run the whole ctest suite so Duck and the shared tests stay green, and
+nothing clipped, text readable.
+
+**Full tree:** `cmake --build build --parallel` and `ctest --test-dir build --output-on-failure` so every
+VST3 target and shared test stays green. Fix any compile/link/test regressions you introduced. Run
 `scripts/check_repo.sh`.
 
 ## 9. Docs

@@ -8,6 +8,37 @@
 Every plugin in the series is built from the same toolbox: JUCE + CMake, shared DSP/UI libraries,
 realtime-safe processing, and a bold, playful look with a bit of animal personality.
 
+## Get started
+
+**Use plugins in Ableton (or any VST3 host):**
+
+1. `git clone https://github.com/SammyEl-Sherif/ableton.git && cd ableton`
+2. Run **`/setup`** in Cursor or Claude Code, or by hand:
+   `python3 scripts/install_plugins.py --build --clean` (`--prereqs` first; `--dry-run` to preview).
+3. In **Ableton Live → Preferences → Plug-ins**, enable **Use VST3 Plug-In System Folders** and **Rescan**
+   (hold **Alt** / **Option** for a full rescan if needed).
+4. Add a plugin from **Plug-Ins → VST3 → Animal Audio** on an audio track. Confirm the **build stamp**
+   (hover the ANIMAL AUDIO badge) matches what the install script printed.
+
+Details: [Install](#install) and `.cursor/skills/setup/SKILL.md`.
+
+**Create a new plugin in the series** — animal-themed design (palette, Motif, BrandBadge), shared DSP/widgets as needed:
+
+```bash
+# In Cursor or Claude Code, e.g. /vst Otter — tempo-synced stereo wobbler
+python3 scripts/new_plugin.py Wobble --description "One-line description"
+scripts/verify_plugin.sh Wobble
+```
+
+The **`/vst`** skill (`.cursor/skills/vst/SKILL.md`) walks through scaffold, Theme/Motif, DRY extraction to
+`shared/`, building **all** plugins, fixing build errors, tests, and docs. More detail: [Adding a plugin](#adding-a-plugin)
+and [AGENTS.md](AGENTS.md).
+
+| Skill | When to use |
+| --- | --- |
+| **`/setup`** | New dev or tester: clone, build, install VST3s, rescan in Ableton |
+| **`/vst`** | New Animal Audio effect: animal-themed UI + shared libraries (layout is up to the concept) |
+
 ## The series
 
 <!-- PLUGINS:START -->
@@ -44,19 +75,6 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
 > (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
-
-## Quick start (build it and use it in Ableton)
-
-1. `git clone https://github.com/SammyEl-Sherif/ableton.git && cd ableton`
-2. Run the **`/setup`** skill in Cursor or Claude Code (`/setup`). It checks and installs build tools, does a clean
-   Release build of **every** plugin under `plugins/`, and installs each `.vst3` into the right VST3 folder. No agent?
-   Run the script it uses: `python3 scripts/install_plugins.py --build --clean` (`--prereqs` first to check the
-   tools; `--dry-run` previews; `--uninstall` removes everything).
-3. In **Ableton Live > Preferences > Plug-ins**, turn on **Use VST3 Plug-In System Folders** and click **Rescan**
-   (hold **Alt**/**Option** while clicking for a full rescan if a plugin does not appear).
-4. Find the plugins under **Plug-Ins > VST3**, drop one on an audio track and test it. Hover the ANIMAL AUDIO badge
-   in the plugin (or read the small text at the bottom of the left panel) to see its **build stamp**
-   (`version | git SHA | date`); it must match what the install script printed.
 
 ## Build
 
@@ -158,10 +176,10 @@ cmake -S . -B build
 scripts/verify_plugin.sh Wobble        # build, ctest, screenshots, pluginval
 ```
 
-You get a working Duck-style plugin (same layout: big knob, division pills, curve editor, preset row,
-Animal Audio branding) with **its own colour scheme**: the script picks a hue far from the other plugins,
-and `makePaletteFromHue()` turns it into a full palette. The animal is a small `Motif` class (mascot, knob cap,
-background, decoration) in the plugin's own `Source/ui/`.
+You get a **scaffold** that builds (curve shaper + `ShaperEditor`, like Duck)—a starting point, not a layout
+requirement. **`/vst`** should reshape UI and DSP for the concept while keeping **Animal Audio** identity: own
+hue and palette (`makePaletteFromHue()`), a `Motif` (Path-drawn animal art), and `BrandBadge`. Compose any
+layout from shared widgets or a custom editor in `Source/ui/`.
 
 Code is shared, not copied: everything generic lives in `shared/` (`dsp`, `core`, `ui`, `testing`), and the
 rule is that the second use of anything moves it there. A plugin folder holds only presets, theme/motif and
