@@ -246,7 +246,7 @@ template <class P, class E>
 void clickingPaintedCentreSelectsThatDivision()
 {
     if (!prepareNativeWindows())
-        SKIP("no display available");
+        SKIP("no usable display (none, or the screen is locked)");
     juce::ScopedJuceInitialiser_GUI gui;
 
     for (const auto& scenario : scenarios())
@@ -291,7 +291,7 @@ template <class P, class E>
 void clickingAnywhereOnAPillSelectsIt()
 {
     if (!prepareNativeWindows())
-        SKIP("no display available");
+        SKIP("no usable display (none, or the screen is locked)");
     juce::ScopedJuceInitialiser_GUI gui;
 
     for (const auto& scenario : scenarios())
@@ -332,7 +332,7 @@ template <class P, class E>
 void selectedPillAndBothNeighbours()
 {
     if (!prepareNativeWindows())
-        SKIP("no display available");
+        SKIP("no usable display (none, or the screen is locked)");
     juce::ScopedJuceInitialiser_GUI gui;
 
     for (const auto& scenario : scenarios())
@@ -372,7 +372,7 @@ template <class P, class E>
 void clickDoesNotDependOnPolledPointerState()
 {
     if (!prepareNativeWindows())
-        SKIP("no display available");
+        SKIP("no usable display (none, or the screen is locked)");
     juce::ScopedJuceInitialiser_GUI gui;
 
     for (const auto& scenario : scenarios())
@@ -415,7 +415,7 @@ template <class P, class E>
 void highlightFollowsHostSidePaths()
 {
     if (!prepareNativeWindows())
-        SKIP("no display available");
+        SKIP("no usable display (none, or the screen is locked)");
     juce::ScopedJuceInitialiser_GUI gui;
 
     for (const auto& scenario : scenarios())
@@ -486,7 +486,7 @@ template <class P, class E>
 void reopenedEditorShowsStoredSelection()
 {
     if (!prepareNativeWindows())
-        SKIP("no display available");
+        SKIP("no usable display (none, or the screen is locked)");
     juce::ScopedJuceInitialiser_GUI gui;
     P processor;
     for (int i = 0; i < dsp::kNumDivisions; ++i)

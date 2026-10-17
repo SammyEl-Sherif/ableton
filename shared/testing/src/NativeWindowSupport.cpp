@@ -4,6 +4,8 @@
 #include <X11/Xlib.h>
 
 #include <initializer_list>
+#elif defined(__APPLE__)
+#include <CoreGraphics/CoreGraphics.h>
 #endif
 
 namespace animalaudio::testing
@@ -41,6 +43,18 @@ bool prepareNativeWindows()
         XInternAtom(display, name, False);
 
     XSync(display, False);
+#elif defined(__APPLE__)
+    // JUCE's macOS peers only take events where the window server says their window is topmost; with no GUI
+    // session (ssh) or a locked screen that is never true, and every injected click would be dropped.
+    CFDictionaryRef session = CGSessionCopyCurrentDictionary();
+    if (session == nullptr)
+        return false;
+    const auto locked = CFDictionaryGetValue(session, CFSTR("CGSSessionScreenIsLocked"));
+    const bool isLocked = locked != nullptr && CFGetTypeID(locked) == CFBooleanGetTypeID() &&
+                          CFBooleanGetValue(static_cast<CFBooleanRef>(locked));
+    CFRelease(session);
+    if (isLocked)
+        return false;
 #endif
     return true;
 }
