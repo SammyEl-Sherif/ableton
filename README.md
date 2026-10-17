@@ -45,6 +45,19 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
 > (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
 
+## Quick start (build it and use it in Ableton)
+
+1. `git clone https://github.com/SammyEl-Sherif/ableton.git && cd ableton`
+2. Run the **`/setup`** skill in Cursor or Claude Code (`/setup`). It checks and installs build tools, does a clean
+   Release build of **every** plugin under `plugins/`, and installs each `.vst3` into the right VST3 folder. No agent?
+   Run the script it uses: `python3 scripts/install_plugins.py --build --clean` (`--prereqs` first to check the
+   tools; `--dry-run` previews; `--uninstall` removes everything).
+3. In **Ableton Live > Preferences > Plug-ins**, turn on **Use VST3 Plug-In System Folders** and click **Rescan**
+   (hold **Alt**/**Option** while clicking for a full rescan if a plugin does not appear).
+4. Find the plugins under **Plug-Ins > VST3**, drop one on an audio track and test it. Hover the ANIMAL AUDIO badge
+   in the plugin (or read the small text at the bottom of the left panel) to see its **build stamp**
+   (`version | git SHA | date`); it must match what the install script printed.
+
 ## Build
 
 Requirements: CMake 3.22+, a C++17 compiler, and Ninja (optional, recommended). JUCE and Catch2 are
@@ -75,17 +88,34 @@ Build just one plugin: `cmake --build build --target Duck_VST3`. Restrict what i
 
 ## Install
 
-The built bundle is `build/plugins/<name>/<Name>_artefacts/<config>/VST3/<Name>.vst3`. Copy it to:
+`python3 scripts/install_plugins.py` (or the `/setup` skill) installs every built bundle
+(`build/plugins/<name>/<Name>_artefacts/Release/VST3/<Name>.vst3`) for you:
 
-| OS | VST3 folder |
-| --- | --- |
-| Windows | `C:\Program Files\Common Files\VST3\` |
-| macOS | `~/Library/Audio/Plug-Ins/VST3/` |
-| Linux | `~/.vst3/` |
+| OS | Default VST3 folder | Machine-wide (`--system`, needs admin) |
+| --- | --- | --- |
+| macOS | `~/Library/Audio/Plug-Ins/VST3/` | `/Library/Audio/Plug-Ins/VST3/` |
+| Windows | `%COMMONPROGRAMFILES%\VST3` when run as administrator, else `%LOCALAPPDATA%\Programs\Common\VST3` | `%COMMONPROGRAMFILES%\VST3` |
+| Linux | `~/.vst3/` | `/usr/lib/vst3/` |
 
-Or configure with `-DAA_COPY_PLUGINS_AFTER_BUILD=ON` to have the build copy it for you. In Ableton Live,
-enable *Preferences > Plug-Ins > Use VST3 Plug-In System Folders* and rescan. Duck is an audio effect:
-drop it on any audio track.
+It overwrites the old copy, removes stale copies from the other folders, and on macOS clears quarantine and
+ad-hoc signs the bundle. `--list` shows every installed copy with its build stamp, `--uninstall` removes them,
+`--dry-run` previews. Alternatively configure with `-DAA_COPY_PLUGINS_AFTER_BUILD=ON` (`scripts/configure.sh` on
+macOS) to have each build copy its bundle. Duck is an audio effect: drop it on any audio track.
+
+**Installing a CI build instead:** every CI run uploads `animal-audio-vst3-<OS>` (Actions > the run > Artifacts).
+They are unsigned: on macOS run `xattr -dr com.apple.quarantine <Plugin>.vst3` and
+`codesign --force --deep --sign - <Plugin>.vst3` after unzipping, and note the macOS CI build is arm64 only
+(Intel/Rosetta Live needs a local `--universal` build). Copy the bundle to the folder above.
+
+### Ableton loads an old build?
+
+1. `python3 scripts/install_plugins.py --list`: it lists every installed copy and flags builds from another commit.
+   The same plugin in two folders (e.g. user and system) is the classic cause: the install script removes the stale one.
+2. Rebuild from the commit you want: `git pull && python3 scripts/install_plugins.py --build --clean`.
+3. In Live, **Rescan** (Alt/Option for a full rescan), or quit and reopen Live; remove and re-add the device on tracks
+   that still use the old one.
+4. Hover the ANIMAL AUDIO badge in the plugin UI: the build stamp must show the new SHA/date. `+dirty` means it was
+   built from a working tree with uncommitted changes.
 
 ## Release zips (animal.audio downloads)
 
@@ -108,8 +138,8 @@ shared/ui/              animalaudio::ui   Theme (palette + animal motif), the sh
 shared/testing/         animalaudio::testing  standard test suites every shaper plugin runs
 plugins/<name>/         one folder per plugin: only what is specific to it (presets, theme/motif, own DSP)
 templates/plugin/       starter used by scripts/new_plugin.py
-.cursor/skills/vst/     the /vst skill (mirrored to .claude/skills/vst/)
-scripts/                new_plugin.py, verify_plugin.sh, format.sh, sync_skills.sh, check_repo.sh
+.cursor/skills/        the /vst and /setup skills (mirrored to .claude/skills/)
+scripts/                new_plugin.py, install_plugins.py (+ tests/), verify_plugin.sh, format.sh, sync_skills.sh, check_repo.sh
 docs/images/            README screenshots
 AGENTS.md               guide for AI agents and contributors (CLAUDE.md and .cursor/rules point here)
 ```
