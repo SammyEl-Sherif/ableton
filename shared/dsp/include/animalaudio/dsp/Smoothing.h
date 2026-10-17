@@ -21,8 +21,11 @@ public:
 
     float next() noexcept
     {
+        // With long time constants the float step rounds away before the snap distance is reached (about 4e-5
+        // below 2.0 at 15 ms / 48 kHz); a step that no longer moves the value has arrived as well.
+        const float previous = current;
         current = target + coeff * (current - target);
-        if (std::abs(current - target) < 2.0e-5f)
+        if (std::abs(current - target) < 2.0e-5f || std::equal_to<float>()(current, previous))
             current = target;
         return current;
     }

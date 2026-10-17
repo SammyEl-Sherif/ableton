@@ -3,6 +3,9 @@
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+#include <cmath>
+#include <utility>
+
 using animalaudio::dsp::OnePoleSmoother;
 
 TEST_CASE("OnePoleSmoother converges monotonically without overshoot")
@@ -47,6 +50,26 @@ TEST_CASE("OnePoleSmoother reports when it has settled exactly on the target")
         s.next();
     REQUIRE(s.isSettled());
     REQUIRE(s.getCurrent() == 0.75f);
+}
+
+TEST_CASE("OnePoleSmoother settles exactly even where float rounding stalls the recurrence")
+{
+    for (double rate : {44100.0, 48000.0, 96000.0, 192000.0})
+        for (double ms : {15.0, 20.0, 100.0})
+            for (auto [from, to] : {std::pair{1.0f, 1.9952623f}, std::pair{1.9952623f, 1.0f}, std::pair{0.0f, 30.0f},
+                                    std::pair{6.9f, 9.9f}, std::pair{-12.0f, -11.5f}})
+            {
+                INFO(rate << " Hz, " << ms << " ms, " << from << " -> " << to);
+                OnePoleSmoother s;
+                s.prepare(rate, ms);
+                s.reset(from);
+                s.setTarget(to);
+                const int limit = static_cast<int>(rate * ms * 0.001 * 40.0);
+                for (int i = 0; i < limit && !s.isSettled(); ++i)
+                    s.next();
+                REQUIRE(s.isSettled());
+                REQUIRE(s.getCurrent() == to);
+            }
 }
 
 TEST_CASE("OnePoleSmoother with zero time snaps immediately")
