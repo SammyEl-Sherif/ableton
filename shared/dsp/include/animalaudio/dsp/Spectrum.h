@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Fft.h"
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -20,10 +22,9 @@ public:
 
     explicit SpectrumAnalyser(int order = 12)
         : size(std::size_t{1} << order)
+        , fft(order)
         , history(size, 0.0f)
         , window(size)
-        , bitReversed(size)
-        , twiddles(size / 2)
         , work(size)
         , magnitudesDb(size / 2 + 1, kFloorDb)
     {
@@ -36,18 +37,6 @@ public:
             windowSum += window[i];
         }
         amplitudeScale = static_cast<float>(2.0 / windowSum);
-
-        for (std::size_t i = 0; i < size; ++i)
-        {
-            std::size_t r = 0;
-            for (int bit = 0; bit < order; ++bit)
-                if ((i >> bit) & 1u)
-                    r |= std::size_t{1} << (order - 1 - bit);
-            bitReversed[i] = r;
-        }
-        for (std::size_t i = 0; i < size / 2; ++i)
-            twiddles[i] =
-                std::polar(1.0f, static_cast<float>(-twoPi * static_cast<double>(i) / static_cast<double>(size)));
     }
 
     int getSize() const noexcept { return static_cast<int>(size); }
@@ -67,24 +56,9 @@ public:
     void compute() noexcept
     {
         for (std::size_t i = 0; i < size; ++i)
-        {
-            const float x = history[(writePos + i) & (size - 1)] * window[i];
-            work[bitReversed[i]] = {x, 0.0f};
-        }
+            work[i] = {history[(writePos + i) & (size - 1)] * window[i], 0.0f};
 
-        for (std::size_t length = 2; length <= size; length <<= 1)
-        {
-            const std::size_t half = length / 2;
-            const std::size_t step = size / length;
-            for (std::size_t start = 0; start < size; start += length)
-                for (std::size_t j = 0; j < half; ++j)
-                {
-                    const auto u = work[start + j];
-                    const auto v = work[start + j + half] * twiddles[j * step];
-                    work[start + j] = u + v;
-                    work[start + j + half] = u - v;
-                }
-        }
+        fft.forward(work.data());
 
         for (std::size_t bin = 0; bin < magnitudesDb.size(); ++bin)
         {
@@ -122,11 +96,10 @@ public:
 
 private:
     std::size_t size;
+    Fft fft;
     std::vector<float> history;
     std::size_t writePos = 0;
     std::vector<float> window;
-    std::vector<std::size_t> bitReversed;
-    std::vector<std::complex<float>> twiddles;
     std::vector<std::complex<float>> work;
     std::vector<float> magnitudesDb;
     float amplitudeScale = 1.0f;

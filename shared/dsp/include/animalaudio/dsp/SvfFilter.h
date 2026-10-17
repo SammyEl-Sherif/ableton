@@ -6,72 +6,54 @@
 
 namespace animalaudio::dsp
 {
-enum class FilterShape
-{
-    Bell,
-    LowShelf,
-    HighShelf
-};
-
 /**
- * Coefficients of a linear trapezoidal state-variable filter (Andrew Simper's SVF). Bell and shelves have the
- * RBJ-cookbook responses, but unlike a direct-form biquad the topology stays well behaved when the coefficients
- * change every few samples and at very low frequencies in single precision.
+ * Coefficients of one linear trapezoidal state-variable filter section (Andrew Simper's SVF). Unlike a
+ * direct-form biquad the topology stays well behaved when the coefficients change every few samples and at very
+ * low frequencies in single precision.
  *
- * Output = m0 * input + m1 * bandpass + m2 * lowpass.
+ * Output = m0 * input + m1 * bandpass + m2 * lowpass, i.e. H(s) = m0 + (m1 s' + m2) / (s'^2 + k s' + 1) with
+ * s' = s / g, where s is the prewarped analog frequency (s = j tan(pi f / fs) on the unit circle).
  */
 struct SvfCoefficients
 {
     static constexpr double kButterworthQ = 0.70710678118654752;
 
     double g = 0.0;
-    double k = 1.0;
+    double k = 2.0;
     double m0 = 1.0;
     double m1 = 0.0;
     double m2 = 0.0;
 
-    /** `frequency` is clamped into [10 Hz, 0.49 * sampleRate], `q` to >= 0.05. Shelves use `q` for their slope
-        (kButterworthQ = no overshoot). Gain 0 dB gives exactly m0 = 1, m1 = m2 = 0 (a bit-exact pass-through). */
-    static SvfCoefficients make(FilterShape shape, double frequency, double q, double gainDb,
-                                double sampleRate) noexcept
+    /** The section (b2 s^2 + b1 s + b0) / (s^2 + a1 s + a0) in the prewarped domain; a0 > 0 and a1 > 0 (stable).
+        Identical numerator and denominator give exactly m0 = 1, m1 = m2 = 0 (a bit-exact pass-through). */
+    static SvfCoefficients fromAnalog(double b2, double b1, double b0, double a1, double a0) noexcept
     {
-        const double f = std::clamp(frequency, 10.0, 0.49 * sampleRate);
-        const double a = std::pow(10.0, gainDb / 40.0);
-        const double w = std::tan(kPi * f / sampleRate);
-        q = std::max(q, 0.05);
-
         SvfCoefficients c;
-        switch (shape)
-        {
-        case FilterShape::Bell:
-            c.g = w;
-            c.k = 1.0 / (q * a);
-            c.m1 = c.k * (a * a - 1.0);
-            break;
-        case FilterShape::LowShelf:
-            c.g = w / std::sqrt(a);
-            c.k = 1.0 / q;
-            c.m1 = c.k * (a - 1.0);
-            c.m2 = a * a - 1.0;
-            break;
-        case FilterShape::HighShelf:
-            c.g = w * std::sqrt(a);
-            c.k = 1.0 / q;
-            c.m0 = a * a;
-            c.m1 = c.k * (1.0 - a) * a;
-            c.m2 = 1.0 - a * a;
-            break;
-        }
+        const double w0 = std::sqrt(a0);
+        c.g = w0;
+        c.k = a1 / w0;
+        c.m0 = b2;
+        c.m1 = b1 / w0 - b2 * c.k;
+        c.m2 = b0 / a0 - b2;
         return c;
     }
 
-    /** Exact magnitude of the digital filter at `frequency` (trapezoidal integration = bilinear transform). */
-    double magnitudeAt(double frequency, double sampleRate) const noexcept
+    bool isIdentity() const noexcept { return m0 == 1.0 && m1 == 0.0 && m2 == 0.0; }
+
+    /** Exact complex response of the digital section at `frequency` (trapezoidal integration = bilinear
+        transform). */
+    std::complex<double> responseAt(double frequency, double sampleRate) const noexcept
     {
+        if (m1 == 0.0 && m2 == 0.0)
+            return {m0, 0.0};
         const double f = std::clamp(frequency, 0.0, 0.4999 * sampleRate);
         const std::complex<double> s(0.0, std::tan(kPi * f / sampleRate) / g);
-        const auto denominator = s * s + k * s + 1.0;
-        return std::abs(m0 + (m1 * s + m2) / denominator);
+        return m0 + (m1 * s + m2) / (s * s + k * s + 1.0);
+    }
+
+    double magnitudeAt(double frequency, double sampleRate) const noexcept
+    {
+        return std::abs(responseAt(frequency, sampleRate));
     }
 
     double magnitudeDbAt(double frequency, double sampleRate) const noexcept

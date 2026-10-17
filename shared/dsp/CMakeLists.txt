@@ -7,12 +7,16 @@ target_compile_features(animalaudio_dsp INTERFACE cxx_std_17)
 if(AA_BUILD_TESTS)
     add_executable(animalaudio_dsp_tests
         tests/CurveGainShaperTests.cpp
+        tests/EnvelopeFollowerTests.cpp
+        tests/EqBandTests.cpp
+        tests/FftTests.cpp
+        tests/FilterDesignTests.cpp
         tests/SampleFifoTests.cpp
         tests/ShapeCurveTests.cpp
         tests/SmoothingTests.cpp
         tests/SpectrumTests.cpp
         tests/StandardPresetsTests.cpp
-        tests/SvfFilterTests.cpp
+        tests/StftTests.cpp
         tests/TempoSyncTests.cpp)
     target_link_libraries(animalaudio_dsp_tests PRIVATE animalaudio::dsp Catch2::Catch2WithMain)
     catch_discover_tests(animalaudio_dsp_tests TEST_PREFIX "dsp.")
