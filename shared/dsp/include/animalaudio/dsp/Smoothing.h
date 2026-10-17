@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <functional>
 
 namespace animalaudio::dsp
 {
@@ -28,6 +29,9 @@ public:
 
     float getCurrent() const noexcept { return current; }
     float getTarget() const noexcept { return target; }
+
+    /** True once next() has snapped exactly onto the target (it stays there until the target changes). */
+    bool isSettled() const noexcept { return std::equal_to<float>()(current, target); }
 
 private:
     float coeff = 0.0f;

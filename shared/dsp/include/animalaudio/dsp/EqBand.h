@@ -95,8 +95,7 @@ private:
                                   std::exp2(static_cast<double>(logQ.getCurrent())), gainDb.getCurrent(), sampleRate);
         for (auto& f : filters)
             f.setCoefficients(c);
-        settled = logFrequency.getCurrent() == logFrequency.getTarget() && gainDb.getCurrent() == gainDb.getTarget() &&
-                  logQ.getCurrent() == logQ.getTarget();
+        settled = logFrequency.isSettled() && gainDb.isSettled() && logQ.isSettled();
     }
 
     FilterShape shape;

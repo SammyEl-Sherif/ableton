@@ -35,6 +35,20 @@ TEST_CASE("OnePoleSmoother reaches ~63% after one time constant")
     REQUIRE(v == Catch::Approx(1.0 - std::exp(-1.0)).margin(0.01));
 }
 
+TEST_CASE("OnePoleSmoother reports when it has settled exactly on the target")
+{
+    OnePoleSmoother s;
+    s.prepare(48000.0, 2.0);
+    s.reset(0.25f);
+    REQUIRE(s.isSettled());
+    s.setTarget(0.75f);
+    REQUIRE_FALSE(s.isSettled());
+    for (int i = 0; i < 48000 && !s.isSettled(); ++i)
+        s.next();
+    REQUIRE(s.isSettled());
+    REQUIRE(s.getCurrent() == 0.75f);
+}
+
 TEST_CASE("OnePoleSmoother with zero time snaps immediately")
 {
     OnePoleSmoother s;
