@@ -30,10 +30,15 @@ void RotaryKnob::paint(juce::Graphics& g)
     g.strokePath(track,
                  juce::PathStrokeType(trackThickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    if (proportion > 0.001f)
+    const float originProportion =
+        arcOrigin ? static_cast<float>(valueToProportionOfLength(juce::jlimit(getMinimum(), getMaximum(), *arcOrigin)))
+                  : 0.0f;
+    if (std::abs(proportion - originProportion) > 0.001f)
     {
+        const float originAngle = kStartAngle + originProportion * (kEndAngle - kStartAngle);
         juce::Path value;
-        value.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.0f, kStartAngle, angle, true);
+        value.addCentredArc(centre.x, centre.y, arcRadius, arcRadius, 0.0f, juce::jmin(originAngle, angle),
+                            juce::jmax(originAngle, angle), true);
         g.setGradientFill(juce::ColourGradient(colours.accentAlt, centre.x - outer, centre.y + outer, colours.accent,
                                                centre.x + outer, centre.y - outer, false));
         g.strokePath(value,
@@ -48,6 +53,12 @@ void RotaryKnob::paint(juce::Graphics& g)
         g.setColour(colours.accent.withAlpha(0.5f));
         g.drawEllipse(bounds.reduced(1.0f), 1.0f);
     }
+}
+
+void RotaryKnob::setArcOrigin(double value)
+{
+    arcOrigin = value;
+    repaint();
 }
 
 void RotaryKnob::drawCap(juce::Graphics& g, juce::Point<float> centre, float radius, float angle)

@@ -2,6 +2,8 @@
 
 #include "Palette.h"
 
+#include <optional>
+
 namespace animalaudio::ui
 {
 /**
@@ -16,6 +18,9 @@ public:
 
     void paint(juce::Graphics& g) override;
 
+    /** The value arc starts at this value instead of the minimum, e.g. 0 dB for a bipolar gain knob. */
+    void setArcOrigin(double value);
+
 protected:
     /** Draw the knob cap inside a circle of `radius` around `centre`, pointing at `angle` (radians,
         0 = 12 o'clock, clockwise positive). */
@@ -24,5 +29,8 @@ protected:
     Palette colours;
     static constexpr float kStartAngle = juce::MathConstants<float>::pi * 1.2f;
     static constexpr float kEndAngle = juce::MathConstants<float>::pi * 2.8f;
+
+private:
+    std::optional<double> arcOrigin;
 };
 } // namespace animalaudio::ui

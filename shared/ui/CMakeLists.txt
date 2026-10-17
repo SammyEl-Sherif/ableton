@@ -14,7 +14,8 @@ target_sources(animalaudio_ui INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/PillButton.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/RotaryKnob.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ShaperEditor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/Theme.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Theme.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ThemedPanel.cpp)
 target_link_libraries(animalaudio_ui INTERFACE
     animalaudio::core
     juce::juce_gui_basics)

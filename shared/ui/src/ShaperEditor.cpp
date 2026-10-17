@@ -1,4 +1,5 @@
 #include <animalaudio/ui/ShaperEditor.h>
+#include <animalaudio/ui/ThemedPanel.h>
 
 #include <animalaudio/core/BuildStamp.h>
 
@@ -97,36 +98,11 @@ void ShaperEditor::resized()
 void ShaperEditor::paint(juce::Graphics& g)
 {
     const auto bounds = getLocalBounds().toFloat();
-    g.setGradientFill(juce::ColourGradient(palette.background.brighter(0.04f), 0.0f, 0.0f,
-                                           palette.background.darker(0.2f), 0.0f, bounds.getBottom(), false));
-    g.fillAll();
+    drawEditorBackground(g, bounds, palette);
 
     const auto leftPanel = juce::Rectangle<float>(8.0f, 8.0f, 262.0f, bounds.getHeight() - 16.0f);
-    g.setColour(palette.panel);
-    g.fillRoundedRectangle(leftPanel, 14.0f);
-    {
-        juce::Graphics::ScopedSaveState state(g);
-        juce::Path clip;
-        clip.addRoundedRectangle(leftPanel, 14.0f);
-        g.reduceClipRegion(clip);
-        theme.motif->drawAmbient(g, leftPanel.withTop(leftPanel.getBottom() - 70.0f), 0.0, palette);
-        theme.motif->drawDecoration(g, leftPanel, palette);
-    }
-
-    // Title: 60 px unless the name is too wide for the column, then shrunk to fit.
-    const auto titleArea = juce::Rectangle<float>(32.0f, 44.0f, 170.0f, 64.0f);
-    float titleSize = 60.0f;
-    const float titleWidth = juce::GlyphArrangement::getStringWidth(makeFont(titleSize), theme.name);
-    if (titleWidth > 156.0f)
-        titleSize = std::max(24.0f, titleSize * 156.0f / titleWidth);
-    g.setColour(palette.accent);
-    g.setFont(makeFont(titleSize));
-    g.drawText(theme.name, titleArea, juce::Justification::centredLeft, false);
-    g.setColour(palette.textDim);
-    g.setFont(makeFont(11.0f, false));
-    g.drawText(theme.tagline, juce::Rectangle<float>(34.0f, 98.0f, 150.0f, 14.0f), juce::Justification::centredLeft,
-               false);
-    theme.motif->drawMascot(g, juce::Rectangle<float>(190.0f, 44.0f, 62.0f, 62.0f), palette);
+    drawThemedPanel(g, leftPanel, theme);
+    drawTitleBlock(g, {32.0f, 44.0f}, theme);
 
     // MIX read-out
     const float mix = static_cast<float>(mixKnob.getValue());
@@ -155,11 +131,7 @@ void ShaperEditor::paint(juce::Graphics& g)
     g.drawText(juce::String(bpmSlider.getValue(), 1), bpmBounds.withY(bpmBounds.getY() - 17.0f).withHeight(14.0f),
                juce::Justification::centredRight, false);
 
-    // build stamp: subtle, so a user can tell which build the host loaded
-    g.setColour(palette.textDim.withAlpha(0.6f));
-    g.setFont(makeFont(9.5f, false));
-    g.drawText(core::buildStampShort(), juce::Rectangle<float>(30.0f, leftPanel.getBottom() - 22.0f, 226.0f, 12.0f),
-               juce::Justification::centredLeft, false);
+    drawBuildStamp(g, juce::Rectangle<float>(30.0f, leftPanel.getBottom() - 22.0f, 226.0f, 12.0f), palette);
 
     // sync status
     const bool host = shownSource == dsp::SyncSource::Host;
