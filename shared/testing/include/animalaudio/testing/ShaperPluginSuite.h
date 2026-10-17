@@ -332,6 +332,28 @@ void editorRendersHeadlessly(const juce::String& name)
 }
 
 /** Standard tests for any plugin built on core::CurveShaperProcessor + ui::ShaperEditor. */
+template <class P, class E>
+void buildStampIsShown()
+{
+    const auto info = core::getBuildInfo();
+    REQUIRE(juce::String(info.version).isNotEmpty());
+    REQUIRE(juce::String(info.gitSha).isNotEmpty());
+    REQUIRE(juce::String(info.date).matchesWildcard("20??-??-??", false));
+
+    const auto stamp = core::buildStampShort();
+    REQUIRE(stamp.contains(info.version));
+    REQUIRE(stamp.contains(info.gitSha));
+    REQUIRE(stamp.contains(info.date));
+    REQUIRE(juce::String(core::buildMarker()).startsWith("AA-BUILD|"));
+
+    juce::ScopedJuceInitialiser_GUI gui;
+    P processor;
+    std::unique_ptr<E> editor(static_cast<E*>(processor.createEditor()));
+    // hovering the brand badge explains which build this is
+    REQUIRE(editor->getBrandBadge().getTooltip().containsIgnoreCase(processor.getName()));
+    REQUIRE(editor->getBrandBadge().getTooltip().contains(info.gitSha));
+}
+
 #define AA_SHAPER_PLUGIN_TESTS(Processor, Editor, label)                                                               \
     TEST_CASE(label ": exposes the standard parameters")                                                               \
     {                                                                                                                  \
@@ -376,6 +398,10 @@ void editorRendersHeadlessly(const juce::String& name)
     TEST_CASE(label ": curve editor edits the stored curve with the mouse")                                            \
     {                                                                                                                  \
         animalaudio::testing::suite::curveEditorMouse<Processor, Editor>();                                            \
+    }                                                                                                                  \
+    TEST_CASE(label ": build stamp is baked in and shown")                                                             \
+    {                                                                                                                  \
+        animalaudio::testing::suite::buildStampIsShown<Processor, Editor>();                                           \
     }                                                                                                                  \
     TEST_CASE(label ": editor renders headlessly")                                                                     \
     {                                                                                                                  \

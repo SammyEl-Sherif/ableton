@@ -20,6 +20,7 @@ set(AA_PLUGINS "" CACHE STRING "Semicolon-separated plugin folder names to build
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 include(FetchDependencies)
 include(AnimalAudioPlugin)
+include(AnimalAudioBuildInfo)
 
 add_subdirectory(shared)
 

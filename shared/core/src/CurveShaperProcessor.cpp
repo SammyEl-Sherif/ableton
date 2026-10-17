@@ -47,7 +47,7 @@ CurveShaperProcessor::CurveShaperProcessor(const juce::String& name, const juce:
 
 int CurveShaperProcessor::getDivisionIndex() const
 {
-    return static_cast<int>(divisionParam->load());
+    return juce::roundToInt(divisionParam->load());
 }
 
 bool CurveShaperProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -76,7 +76,7 @@ void CurveShaperProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         curveTableChanged(localTable);
 
     const auto transport = readTransport(getPlayHead());
-    const auto division = divisionFromIndex(static_cast<int>(divisionParam->load()));
+    const auto division = divisionFromIndex(juce::roundToInt(divisionParam->load()));
     const auto block = tracker.beginBlock(transport, division, fallbackBpmParam->load(), buffer.getNumSamples());
     syncSource.store(static_cast<int>(block.source), std::memory_order_relaxed);
 

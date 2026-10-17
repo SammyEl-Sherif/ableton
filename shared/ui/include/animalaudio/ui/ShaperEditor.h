@@ -34,6 +34,8 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
+    const Theme& getTheme() const noexcept { return theme; }
+    BrandBadge& getBrandBadge() noexcept { return brand; }
     CurveEditor& getCurveEditor() noexcept { return curveEditor; }
     ChoicePillRow& getDivisionRow() noexcept { return divisionRow; }
     juce::Button& getDivisionButton(int index) { return divisionRow.getPill(index); }
@@ -47,6 +49,8 @@ private:
     Theme theme;
     Palette palette;
 
+    juce::TooltipWindow tooltipWindow{this,
+                                      500}; // plugins have no app-wide tooltip window; without it no tooltip shows
     BrandBadge brand;
     ThemedKnob mixKnob;
     juce::Slider bpmSlider;

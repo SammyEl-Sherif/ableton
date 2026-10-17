@@ -62,6 +62,18 @@ jobs:
             ctest --test-dir build -C Release --output-on-failure
           fi
 
+      - name: Install script smoke test (temp prefix, real OS tooling)
+        shell: bash
+        run: |
+          PY=python3; command -v python3 >/dev/null || PY=python
+          prefix="$RUNNER_TEMP/vst3-install-test"
+          $PY scripts/install_plugins.py --prefix "$prefix" --yes
+          $PY scripts/install_plugins.py --list --prefix "$prefix" | tee list.txt
+          grep -q "Duck.vst3" list.txt
+          if grep -q "not this checkout's commit" list.txt; then echo "installed build stamp does not match HEAD"; exit 1; fi
+          $PY scripts/install_plugins.py --uninstall --prefix "$prefix"
+          test -z "$(ls -A "$prefix")"
+
       - name: Validate VST3 with pluginval (Linux)
         if: runner.os == 'Linux'
         run: |

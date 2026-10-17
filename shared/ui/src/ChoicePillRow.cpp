@@ -18,8 +18,7 @@ ChoicePillRow::ChoicePillRow(juce::AudioParameterChoice& parameter, const Palett
         pills.push_back(std::move(pill));
     }
 
-    attachment = std::make_unique<juce::ParameterAttachment>(choice, [this](float)
-                                                             { show(choice.getIndex()); });
+    attachment = std::make_unique<juce::ParameterAttachment>(choice, [this](float) { show(choice.getIndex()); });
     attachment->sendInitialUpdate();
 }
 

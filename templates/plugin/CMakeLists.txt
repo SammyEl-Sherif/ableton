@@ -21,5 +21,5 @@ if(AA_BUILD_TESTS)
         animalaudio::testing
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
-    catch_discover_tests(__NAME__Tests TEST_PREFIX "__NAME_LOWER__.")
+    catch_discover_tests(__NAME__Tests TEST_PREFIX "__NAME_LOWER__." PROPERTIES RESOURCE_LOCK native_display)
 endif()

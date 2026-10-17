@@ -22,5 +22,5 @@ if(AA_BUILD_TESTS)
         animalaudio::testing
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
-    catch_discover_tests(DuckTests TEST_PREFIX "duck.")
+    catch_discover_tests(DuckTests TEST_PREFIX "duck." PROPERTIES RESOURCE_LOCK native_display)
 endif()
