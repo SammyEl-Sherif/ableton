@@ -45,6 +45,7 @@ and [AGENTS.md](AGENTS.md).
 | Plugin | What it does | Source | Status |
 | --- | --- | --- | --- |
 | **Duck** | Tempo-synced volume ducking with a draggable curve editor, 16 preset shapes and a big MIX knob | `plugins/duck` | Alpha: builds as VST3, all tests pass, passes pluginval level 10 on Linux; not yet tried in a real DAW |
+| **Owl** | Simple three-band EQ (low shelf, mid bell, high shelf) with a live spectrum and draggable bands | `plugins/owl` | Alpha: builds as VST3 on macOS, all its tests pass, passes pluginval level 10 on macOS; not yet tried in a real DAW |
 <!-- PLUGINS:END -->
 
 More animals are on the way. Adding one takes a single command (or the `/vst` agent skill), see [Adding a plugin](#adding-a-plugin).
@@ -75,6 +76,31 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
 > (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
+
+## Owl
+
+A simple, sweet-sounding three-band EQ with very good hearing. Owl shows you what is in your track and
+lets you grab it.
+
+<p align="center">
+  <img src="docs/images/owl-ui.png" alt="Owl by Animal Audio" width="760">
+</p>
+
+- **Three bands**: `LOW` shelf (20 Hz–1 kHz), `MID` bell (100 Hz–12 kHz, Q 0.3–8) and `HIGH` shelf
+  (1.5–20 kHz), each ±18 dB, plus an **OUTPUT** trim (the big owl knob: it turns its head with the value).
+- **Draggable bands**: drag the `L`/`M`/`H` nodes on the display to set frequency and gain together,
+  scroll over `M` to change its Q, double-click a node to flatten that band. `FLAT` resets all three.
+- **Live spectrum** of the EQ'd signal behind the summed response curve and each band's contribution.
+- **Clean**: flat settings are a bit-exact pass-through; every knob move and automation jump glides
+  (about 20 ms) so nothing clicks; the result does not depend on the host's buffer size. Filters are
+  state-variable designs that stay well behaved under fast automation.
+- **State**: every parameter is saved with your Live set / preset and fully automatable.
+
+<p align="center">
+  <img src="docs/images/owl-ui-presence.png" alt="Owl with a presence boost" width="620">
+</p>
+
+> Rendered headlessly by `AA_SCREENSHOT_DIR=docs/images ./build/plugins/owl/OwlTests "owl: editor renders headlessly"`.
 
 ## Build
 
@@ -118,7 +144,7 @@ Build just one plugin: `cmake --build build --target Duck_VST3`. Restrict what i
 It overwrites the old copy, removes stale copies from the other folders, and on macOS clears quarantine and
 ad-hoc signs the bundle. `--list` shows every installed copy with its build stamp, `--uninstall` removes them,
 `--dry-run` previews. Alternatively configure with `-DAA_COPY_PLUGINS_AFTER_BUILD=ON` (`scripts/configure.sh` on
-macOS) to have each build copy its bundle. Duck is an audio effect: drop it on any audio track.
+macOS) to have each build copy its bundle. Duck and Owl are audio effects: drop them on any audio track.
 
 **Installing a CI build instead:** every CI run uploads `animal-audio-vst3-<OS>` (Actions > the run > Artifacts).
 They are unsigned: on macOS run `xattr -dr com.apple.quarantine <Plugin>.vst3` and
@@ -150,9 +176,9 @@ Upload paths and Supabase steps live in the **animal-audio-web** repo: `docs/DOW
 ```
 CMakeLists.txt          top level: fetches JUCE/Catch2, adds shared/ and every plugins/*
 cmake/                  FetchDependencies.cmake, AnimalAudioPlugin.cmake (aa_add_plugin)
-shared/dsp/             animalaudio::dsp  header-only C++17 DSP (smoothing, tempo sync, curves, gain engine) + tests
-shared/core/            animalaudio::core curve state, shaper processor base class (params, state, transport)
-shared/ui/              animalaudio::ui   Theme (palette + animal motif), the shaper editor and its widgets
+shared/dsp/             animalaudio::dsp  header-only C++17 DSP (smoothing, tempo sync, curves, gain engine, SVF/EQ bands, analyser) + tests
+shared/core/            animalaudio::core plugin processor base (params, state), curve state, shaper processor (transport)
+shared/ui/              animalaudio::ui   Theme (palette + animal motif), themed panels, the shaper editor and its widgets
 shared/testing/         animalaudio::testing  standard test suites every shaper plugin runs
 plugins/<name>/         one folder per plugin: only what is specific to it (presets, theme/motif, own DSP)
 templates/plugin/       starter used by scripts/new_plugin.py
@@ -191,9 +217,12 @@ its own DSP. See [AGENTS.md](AGENTS.md) for the policy, conventions and realtime
   round-trip, mouse editing, headless UI render, real synthetic mouse events through a native window at several UI scales) on Linux. The Linux VST3 also passes pluginval at strictness 10. It has not yet been loaded in Ableton Live
   or validated with Steinberg's own `validator`; macOS and Windows builds are configured in CI but
   unverified until the first workflow run.
+- Owl was built and tested on macOS (arm64): DSP, response accuracy, click-freeness, block-size independence,
+  state, mouse editing and headless UI render, plus pluginval at strictness 10. It has not yet been loaded in
+  Ableton Live; Linux/Windows rely on CI.
 - The repository has no open-source license yet (see [LICENSE](LICENSE)). JUCE and the VST3 SDK are
   AGPL/GPL or commercially licensed, so decide on licensing before distributing binaries.
-- Duck is an original design inspired by the general idea of volume-shaper ducking tools. It does not
-  use any third-party branding or assets.
+- Duck is an original design inspired by the general idea of volume-shaper ducking tools; Owl by the general
+  idea of graphical EQs. Neither uses any third-party branding or assets.
 
 <p align="center"><sub>Animal Audio</sub></p>

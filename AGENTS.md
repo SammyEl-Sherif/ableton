@@ -12,6 +12,7 @@ Stack: **JUCE 8 + CMake (C++17)**, Catch2 for tests. VST3 only (Standalone optio
 | Plugin | Folder | CMake target | Plugin code |
 | --- | --- | --- | --- |
 | Duck (volume ducking / shaper) | `plugins/duck` | `Duck` (`Duck_VST3`), tests: `DuckTests` | `Duck` |
+| Owl (three-band EQ) | `plugins/owl` | `Owl` (`Owl_VST3`), tests: `OwlTests` | `Owlx` |
 
 New plugins: use the **`/vst <name or idea>`** skill (see [Creating a plugin with `/vst`](#creating-a-plugin-with-vst)).
 
@@ -26,22 +27,35 @@ shared/dsp/           animalaudio::dsp  INTERFACE, pure C++17, NO JUCE. Tests in
   ShapeCurve.h        node/bend curve (message thread) + CurveTable (baked LUT for the audio thread)
   CurvePreset.h       CurvePreset / CurvePresetList;  StandardPresets.h: the 16 stock shapes (plugin supplies names)
   CurveGainShaper.h   curve -> gain engine (declick, mix, scope feed);  CycleScope.h: audio->UI scope bins
+  SvfFilter.h         SvfCoefficients (bell / low shelf / high shelf, exact magnitudeAt for drawing) + SvfFilter
+  EqBand.h            one smoothed SVF band (glides freq/gain/Q; coefficient refresh grid kept across blocks)
+  SampleFifo.h        lock-free SPSC audio->UI sample feed;  Spectrum.h: SpectrumAnalyser (Hann + radix-2 FFT, UI side)
 shared/core/          animalaudio::core INTERFACE (sources compile into each plugin): JUCE but no GUI
+  PluginProcessor     base AudioProcessor of every effect: APVTS from a layout, mono/stereo in == out, one program,
+                      APVTS state save/restore (+ stateRestored() hook)
   CurveState          curve stored in the APVTS ValueTree + lock-free-ish publish to the audio thread
-  CurveShaperProcessor  base AudioProcessor: standard params (division, mix, fallbackBpm), state save/restore,
+  CurveShaperProcessor  PluginProcessor + standard params (division, mix, fallbackBpm), curve state,
                       transport + phase plumbing; GainShaperProcessor = same with CurveGainShaper DSP
   TransportReader.h   AudioPlayHead -> dsp::TransportInfo
 shared/ui/            animalaudio::ui   INTERFACE lib whose .cpp files compile into each plugin
   Palette.h           colour roles every widget draws from; makePaletteFromHue(); makeFont()
   Theme.h             Theme { Palette, name, tagline, Motif }; Motif = the animal (mascot, knob cap, ambient, decoration)
+  ThemedPanel.h       editor backdrop, side panel (motif ambient + decoration), title block (NAME, tagline, mascot), build stamp
   ShaperEditor        optional shared curve-shaper editor (Duck uses it at 820x470); not required for every plugin
-  BrandBadge, PillButton, ChoicePillRow, RotaryKnob/ThemedKnob, CurveEditor, CurvePresetPanel, Drawing.h
+  BrandBadge, PillButton, ChoicePillRow, RotaryKnob (setArcOrigin for bipolar)/ThemedKnob, CurveEditor,
+  CurvePresetPanel, Drawing.h
 shared/testing/       animalaudio::testing header-only Catch2 suites: AA_SHAPER_PLUGIN_TESTS, AA_GAIN_SHAPER_PLUGIN_TESTS
 plugins/duck/         only what is Duck-specific:
   Source/             DuckProcessor (GainShaperProcessor + presets), DuckEditor (ShaperEditor + DuckTheme)
   Source/dsp/         DuckPresets (names for the standard shapes)
   Source/ui/          DuckTheme (palette, kThemeHue), DuckMotif (rubber duck, duck-head knob cap, feathers)
   tests/              DuckTests.cpp = the two shared suite macros
+plugins/owl/          custom processor + editor (not the shaper stack):
+  Source/             OwlProcessor (PluginProcessor + 8 params + analyser FIFO), OwlEditor (900x520)
+  Source/dsp/         OwlEq.h: band layout, Settings, responseDb(), OwlEq engine (3 EqBands + output trim)
+  Source/ui/          OwlTheme (palette, kThemeHue, bandColour), OwlMotif (owl, head-turning knob cap, eye caps,
+                      stars, moon), ResponseView (spectrum + curves + draggable nodes), EyeKnob
+  tests/              OwlTests.cpp (DSP via the processor, state, layouts, mouse editing, headless render)
 templates/plugin/     starter copied by scripts/new_plugin.py (placeholders __NAME__, __NAME_LOWER__, __HUE__, ...)
 .cursor/skills/       the /vst and /setup skills (canonical);  .claude/skills/ holds copies made by scripts/sync_skills.sh
 scripts/              new_plugin.py, install_plugins.py (+ tests/), verify_plugin.sh, format.sh, sync_skills.sh, check_repo.sh
@@ -76,7 +90,7 @@ scripts/verify_plugin.sh Duck                               # build + ctest + sc
 - Screenshots for the README: `AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`.
   Regenerate and commit them whenever the Duck UI changes visibly.
 - Plugin validation: [pluginval](https://github.com/Tracktion/pluginval) (`xvfb-run -a pluginval --strictness-level 10 --validate-in-process <bundle>.vst3`);
-  CI runs level 5 on Linux. Duck passes level 10 (incl. editor, automation, state restore).
+  CI runs level 5 on Linux. Duck passes level 10 (incl. editor, automation, state restore); Owl passes level 10 on macOS.
 - Format: `scripts/format.sh` (CI checks `clang-format --dry-run --Werror` on all `*.h`/`*.cpp`).
 - Script checks: `scripts/check_repo.sh` runs `bash -n` on `scripts/*.sh`, `py_compile` on the Python scripts, the
   install-script unit tests and, when `pwsh` exists (CI), the PowerShell parser on `scripts/*.ps1`.
@@ -200,6 +214,19 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
   slider. Right: division pills + sync status, curve editor, preset nav/flip/invert, 2x8 preset grid.
   Duck's `DuckMotif`: rubber duck mascot, duck head from above as knob cap (bill = pointer), feathers, pond ripples.
 
+## Owl specifics
+
+- Params (all version 1, saved-state contract): `lowFreq` (20-1000 Hz, def 120), `lowGain`, `midFreq` (100-12000,
+  def 1000), `midGain`, `midQ` (0.3-8, def 1), `highFreq` (1500-20000, def 8000), `highGain`, `output`. Gains are
+  ±18 dB with a snap to exact tenths, so 0 dB from a host is exactly 0 and a flat EQ stays a bit-exact pass-through.
+- DSP (`Source/dsp/OwlEq.h`): low shelf + mid bell + high shelf (`dsp::EqBand`, shelves at Q 0.707) in series, then
+  a smoothed output gain. Freq/gain/Q glide ~20 ms; coefficients refresh every 16 samples while moving.
+  `responseDb()` uses the same coefficient maths as the audio path, so the drawn curve is the real response.
+- UI: left panel like Duck (`ThemedPanel`, OUTPUT `ThemedKnob` with an owl-face cap, FLAT pill); right: `ResponseView`
+  (post-EQ spectrum fed by `SampleFifo` -> `SpectrumAnalyser` on a 30 Hz timer, per-band fills, summed curve, nodes:
+  drag = freq + gain, wheel on mid = Q, double-click = 0 dB) and one card per band with `EyeKnob`s.
+- Band colours: low = `detail` (amber), mid = `accent` (lavender), high = `accentAlt` (dusk pink).
+
 ## Branding
 
 - Company: **Animal Audio** (wordmark "ANIMAL AUDIO" with a paw glyph, `animalaudio::ui::BrandBadge`;
@@ -208,6 +235,8 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
   motif per plugin drawn with `juce::Path` (no bitmap assets, no external fonts).
 - Every plugin has its own palette and its own animal (see "Theme" above); Duck's: yellow `#FFCB1F`, bill orange `#FF8A1F`/`#FF7A1A`, charcoal `#1A1610`/`#241F15`, water blue
   `#4FB6D9` (only as faint ripples). Motifs: rubber duck, bill, feather, water ripples.
+  Owl's: lavender `#B89CFF`, dusk pink `#FF8BC6`, owl-eye amber `#FFB547`, midnight `#120F1C`/`#1B1729`, moonlight
+  `#8FD6FF` (faint stars). Motifs: perched owl, head-turning owl face, owl eyes, crescent moon, barred feather.
 - Plugins may be *inspired by* existing tools' workflows but must not copy their branding, names, art or code.
   (Duck's layout takes cues from volume-shaper plugins; nothing else.)
 

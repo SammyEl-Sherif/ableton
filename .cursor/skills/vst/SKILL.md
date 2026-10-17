@@ -72,11 +72,15 @@ Open this table and decide, for every piece the concept needs, whether it alread
 | editable curve model + realtime LUT | `dsp/ShapeCurve.h` `ShapeCurve`, `CurveTable` |
 | curve stored in plugin state, published to audio thread | `core/CurveState.h` |
 | curve to gain engine with scope data | `dsp/CurveGainShaper.h`, `dsp/CycleScope.h` |
+| any effect: APVTS, mono/stereo buses, programs, state save/restore | `core/PluginProcessor.h` (Owl derives from it) |
 | standard params (division, mix, fallbackBpm), state save/restore, phase/transport plumbing | `core/CurveShaperProcessor.h` (`GainShaperProcessor` for gain effects) |
+| EQ / filter bands (bell, shelves) with exact response for drawing | `dsp/SvfFilter.h` `SvfCoefficients`, `SvfFilter`; `dsp/EqBand.h` (smoothed, block-size independent) |
+| audio -> UI sample feed, spectrum analyser | `dsp/SampleFifo.h` (lock-free SPSC), `dsp/Spectrum.h` `SpectrumAnalyser` |
 | 16 stock curve shapes | `dsp/StandardPresets.h` (you supply names) |
 | curve-shaper editor (optional) | `ui/ShaperEditor.h` + `ui/Theme.h` — use when the UX matches Duck; otherwise a custom editor |
 | branding + look | `BrandBadge`, `Theme` (`Palette` + `Motif`), `makePaletteFromHue`, `makeFont` |
-| widgets (mix and match) | `PillButton`, `ChoicePillRow`, `RotaryKnob`/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
+| left-panel backdrop, title block (NAME + tagline + mascot), build stamp | `ui/ThemedPanel.h` (used by `ShaperEditor` and Owl) |
+| widgets (mix and match) | `PillButton`, `ChoicePillRow`, `RotaryKnob` (`setArcOrigin` for bipolar)/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
 | test suites | `shared/testing`: `AA_SHAPER_PLUGIN_TESTS`, `AA_GAIN_SHAPER_PLUGIN_TESTS` |
 
 Skim the headers (`ls shared/*/include/animalaudio/*`) rather than trusting this table; it can be stale.
