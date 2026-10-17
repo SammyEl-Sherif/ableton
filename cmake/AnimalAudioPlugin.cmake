@@ -48,6 +48,10 @@ function(aa_add_plugin target)
 
     target_sources(${target} PRIVATE ${AA_SOURCES})
 
+    # Refresh the build stamp before this plugin compiles (also implied by linking animalaudio::core, but explicit
+    # is what every generator, including Visual Studio, reliably honours).
+    add_dependencies(${target} aa_build_info)
+
     target_compile_definitions(${target} PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0

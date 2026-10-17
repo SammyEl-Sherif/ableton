@@ -1,5 +1,7 @@
 #include <animalaudio/ui/ShaperEditor.h>
 
+#include <animalaudio/core/BuildStamp.h>
+
 namespace animalaudio::ui
 {
 namespace
@@ -23,6 +25,7 @@ ShaperEditor::ShaperEditor(core::CurveShaperProcessor& p, const Theme& themeToUs
     , divisionRow(getChoice(p), palette, "Duck once per note division, synced to the host tempo")
     , presetPanel(p.getCurveState(), theme)
 {
+    brand.setTooltip(core::buildStampLong(theme.name));
     addAndMakeVisible(brand);
     addAndMakeVisible(mixKnob);
     addAndMakeVisible(curveEditor);
@@ -151,6 +154,12 @@ void ShaperEditor::paint(juce::Graphics& g)
     g.setColour(palette.text);
     g.drawText(juce::String(bpmSlider.getValue(), 1), bpmBounds.withY(bpmBounds.getY() - 17.0f).withHeight(14.0f),
                juce::Justification::centredRight, false);
+
+    // build stamp: subtle, so a user can tell which build the host loaded
+    g.setColour(palette.textDim.withAlpha(0.6f));
+    g.setFont(makeFont(9.5f, false));
+    g.drawText(core::buildStampShort(), juce::Rectangle<float>(30.0f, leftPanel.getBottom() - 22.0f, 226.0f, 12.0f),
+               juce::Justification::centredLeft, false);
 
     // sync status
     const bool host = shownSource == dsp::SyncSource::Host;

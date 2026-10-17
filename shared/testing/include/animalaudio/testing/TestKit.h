@@ -1,5 +1,6 @@
 #pragma once
 
+#include <animalaudio/core/BuildStamp.h>
 #include <animalaudio/core/CurveShaperProcessor.h>
 #include <animalaudio/ui/ShaperEditor.h>
 

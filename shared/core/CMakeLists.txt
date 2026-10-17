@@ -5,9 +5,11 @@ add_library(animalaudio_core INTERFACE)
 add_library(animalaudio::core ALIAS animalaudio_core)
 target_include_directories(animalaudio_core INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_sources(animalaudio_core INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/BuildStamp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/CurveState.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/CurveShaperProcessor.cpp)
 target_link_libraries(animalaudio_core INTERFACE
+    animalaudio::build_info
     animalaudio::dsp
     juce::juce_audio_processors
     juce::juce_data_structures

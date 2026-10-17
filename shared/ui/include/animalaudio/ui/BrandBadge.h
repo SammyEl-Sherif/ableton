@@ -8,13 +8,14 @@ namespace animalaudio::ui
 juce::Path makePawPath(juce::Rectangle<float> area);
 
 /** The "ANIMAL AUDIO" wordmark with a paw glyph. Place it on every plugin UI. */
-class BrandBadge : public juce::Component
+class BrandBadge : public juce::Component, public juce::SettableTooltipClient
 {
 public:
     explicit BrandBadge(const Palette& palette)
         : colours(palette)
     {
-        setInterceptsMouseClicks(false, false);
+        // takes hover (for the tooltip) but never clicks
+        setInterceptsMouseClicks(true, false);
     }
 
     void paint(juce::Graphics& g) override;
