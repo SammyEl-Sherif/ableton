@@ -7,7 +7,8 @@ target_include_directories(animalaudio_core INTERFACE ${CMAKE_CURRENT_SOURCE_DIR
 target_sources(animalaudio_core INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/BuildStamp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/CurveState.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/CurveShaperProcessor.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/CurveShaperProcessor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/PluginProcessor.cpp)
 target_link_libraries(animalaudio_core INTERFACE
     animalaudio::build_info
     animalaudio::dsp

@@ -33,11 +33,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CurveShaperProcessor::create
 
 CurveShaperProcessor::CurveShaperProcessor(const juce::String& name, const juce::Identifier& stateType,
                                            const CurvePresetList& presets)
-    : juce::AudioProcessor(BusesProperties()
-                               .withInput("Input", juce::AudioChannelSet::stereo(), true)
-                               .withOutput("Output", juce::AudioChannelSet::stereo(), true))
-    , apvts(*this, nullptr, stateType, createParameterLayout())
-    , pluginName(name)
+    : PluginProcessor(name, stateType, createParameterLayout())
     , curveState(apvts.state, presets)
 {
     divisionParam = apvts.getRawParameterValue(ids::division.getParamID());
@@ -48,14 +44,6 @@ CurveShaperProcessor::CurveShaperProcessor(const juce::String& name, const juce:
 int CurveShaperProcessor::getDivisionIndex() const
 {
     return juce::roundToInt(divisionParam->load());
-}
-
-bool CurveShaperProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
-{
-    const auto& out = layouts.getMainOutputChannelSet();
-    if (out != juce::AudioChannelSet::mono() && out != juce::AudioChannelSet::stereo())
-        return false;
-    return out == layouts.getMainInputChannelSet();
 }
 
 void CurveShaperProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -83,23 +71,9 @@ void CurveShaperProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     renderCycle(buffer, {block.startPhase, block.increment, mixParam->load()});
 }
 
-void CurveShaperProcessor::getStateInformation(juce::MemoryBlock& destData)
+void CurveShaperProcessor::stateRestored()
 {
-    const auto state = apvts.copyState();
-    if (const auto xml = state.createXml())
-        copyXmlToBinary(*xml, destData);
-}
-
-void CurveShaperProcessor::setStateInformation(const void* data, int sizeInBytes)
-{
-    if (const auto xml = getXmlFromBinary(data, sizeInBytes))
-    {
-        if (xml->hasTagName(apvts.state.getType()))
-        {
-            apvts.replaceState(juce::ValueTree::fromXml(*xml));
-            curveState.ensureExists();
-            curveState.sendSynchronousChangeMessage();
-        }
-    }
+    curveState.ensureExists();
+    curveState.sendSynchronousChangeMessage();
 }
 } // namespace animalaudio::core

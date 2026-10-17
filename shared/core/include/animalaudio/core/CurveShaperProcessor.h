@@ -1,11 +1,10 @@
 #pragma once
 
 #include "CurveState.h"
+#include "PluginProcessor.h"
 
 #include <animalaudio/dsp/CurveGainShaper.h>
 #include <animalaudio/dsp/TempoSync.h>
-
-#include <juce_audio_processors/juce_audio_processors.h>
 
 namespace animalaudio::core
 {
@@ -24,7 +23,7 @@ inline const juce::ParameterID fallbackBpm{"fallbackBpm", 1};
  * tracking, and state save/restore. Subclasses supply the DSP via renderCycle() and the editor via
  * createEditor().
  */
-class CurveShaperProcessor : public juce::AudioProcessor
+class CurveShaperProcessor : public PluginProcessor
 {
 public:
     /** The per-block phase information handed to the DSP. */
@@ -51,28 +50,10 @@ public:
     virtual int getNumScopeBins() const { return 0; }
     virtual float getScopeBin(int) const { return 0.0f; }
 
-    // ---- AudioProcessor boilerplate ----
     void prepareToPlay(double sampleRate, int samplesPerBlock) final;
-    void releaseResources() override {}
-    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) final;
     using juce::AudioProcessor::processBlock;
 
-    bool hasEditor() const override { return true; }
-    const juce::String getName() const override { return pluginName; }
-    bool acceptsMidi() const override { return false; }
-    bool producesMidi() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return {}; }
-    void changeProgramName(int, const juce::String&) override {}
-
-    void getStateInformation(juce::MemoryBlock& destData) override;
-    void setStateInformation(const void* data, int sizeInBytes) override;
-
-    juce::AudioProcessorValueTreeState apvts;
     CurveState& getCurveState() noexcept { return curveState; }
 
     dsp::SyncSource getSyncSource() const noexcept
@@ -83,10 +64,12 @@ public:
     int getDivisionIndex() const;
     float getMix() const noexcept { return mixParam->load(); }
 
+protected:
+    void stateRestored() override;
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    juce::String pluginName;
     CurveState curveState;
     dsp::PhaseTracker tracker;
     dsp::CurveTable localTable;
