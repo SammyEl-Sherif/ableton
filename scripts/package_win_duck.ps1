@@ -16,8 +16,16 @@ if (-not (Test-Path $bundle)) {
 }
 
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+$staging = Join-Path $env:TEMP "duck-win-release-$version"
+if (Test-Path $staging) { Remove-Item $staging -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $staging | Out-Null
+Copy-Item -Recurse -Force $bundle (Join-Path $staging "Duck.vst3")
+Copy-Item -Force (Join-Path $PSScriptRoot "..\docs\EULA.md") (Join-Path $staging "Animal-Audio-Duck-EULA.txt")
+Copy-Item -Force (Join-Path $PSScriptRoot "..\docs\THIRD_PARTY_NOTICES.md") (Join-Path $staging "Third-Party-Notices.txt")
+Copy-Item -Force (Join-Path $PSScriptRoot "installers\win\Install-Duck.ps1") (Join-Path $staging "Install-Duck.ps1")
 if (Test-Path $outZip) { Remove-Item $outZip -Force }
-Compress-Archive -Path $bundle -DestinationPath $outZip
+Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $outZip
+Remove-Item $staging -Recurse -Force
 Get-FileHash $outZip -Algorithm SHA256 | Format-List
 
 Write-Host ""

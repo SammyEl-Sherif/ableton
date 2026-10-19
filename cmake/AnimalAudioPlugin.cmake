@@ -31,8 +31,13 @@ function(aa_add_plugin target)
         list(APPEND _formats Standalone)
     endif()
 
+    set(_product_name "${AA_PRODUCT_NAME}")
+    if(AA_LOCAL_BUILD)
+        set(_product_name "${AA_PRODUCT_NAME} Local")
+    endif()
+
     juce_add_plugin(${target}
-        PRODUCT_NAME "${AA_PRODUCT_NAME}"
+        PRODUCT_NAME "${_product_name}"
         COMPANY_NAME "Animal Audio"
         COMPANY_WEBSITE "https://animal.audio"
         BUNDLE_ID "${AA_BUNDLE_ID}"

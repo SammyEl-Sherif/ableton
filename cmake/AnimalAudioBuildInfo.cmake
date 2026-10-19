@@ -13,6 +13,7 @@ add_custom_target(aa_build_info ALL
         -DOUT=${AA_BUILD_INFO_HEADER}
         -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DVERSION=${PROJECT_VERSION}
+        -DLOCAL_BUILD=${AA_LOCAL_BUILD}
         -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake
     COMMENT "Generating build stamp"
     VERBATIM)
@@ -20,6 +21,7 @@ add_custom_target(aa_build_info ALL
 # The header must exist for IDE indexing and for configure-only runs.
 execute_process(COMMAND ${CMAKE_COMMAND}
     -DOUT=${AA_BUILD_INFO_HEADER} -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DVERSION=${PROJECT_VERSION}
+    -DLOCAL_BUILD=${AA_LOCAL_BUILD}
     -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake)
 
 add_library(animalaudio_build_info INTERFACE)

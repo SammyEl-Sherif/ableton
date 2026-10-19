@@ -16,7 +16,7 @@ struct BuildInfo
 
 BuildInfo getBuildInfo() noexcept;
 
-/** "0.1.0 | a1b2c3d | 2026-10-17" (SHA gets a "+dirty" suffix for uncommitted changes). */
+/** "0.1.0 | a1b2c3d | 2026-10-17" (SHA gets a "+dirty" suffix; dev builds append " | local"). */
 juce::String buildStampShort();
 
 /** "Duck 0.1.0 (build a1b2c3d, 2026-10-17)": for tooltips and about text. */

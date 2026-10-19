@@ -3,7 +3,8 @@
 #
 # Prerequisites: docs/APPLE_DEVELOPER_SETUP.md
 #
-#   export AA_CODESIGN_IDENTITY="Developer ID Application: Animal Audio (TEAMID)"
+#   export AA_CODESIGN_IDENTITY="Developer ID Application: …"
+#   export AA_INSTALLER_CODESIGN_IDENTITY="Developer ID Installer: …"
 #   export AA_NOTARY_KEY="$HOME/.appstoreconnect/AuthKey_XXXX.p8"
 #   export AA_NOTARY_KEY_ID="..."
 #   export AA_NOTARY_ISSUER="..."
@@ -11,14 +12,18 @@
 #
 # Optional: AA_DUCK_VERSION=1.0.0  AA_BUILD_DIR=build  AA_SKIP_BUILD=1
 set -euo pipefail
-cd "$(dirname "$0")/.."
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$repo_root"
+# shellcheck source=lib/mac_signing_identities.sh
+source "$repo_root/scripts/lib/mac_signing_identities.sh"
 
 version="${AA_DUCK_VERSION:-1.0.0}"
 build_dir="${AA_BUILD_DIR:-build}"
 bundle_rel="plugins/duck/Duck_artefacts/Release/VST3/Duck.vst3"
 bundle="${build_dir}/${bundle_rel}"
 zip_name="Duck-${version}-mac-vst3.zip"
-dist_dir="${AA_DIST_DIR:-dist/releases/${version}}"
+pkg_name="Duck-${version}-mac-installer.pkg"
+dist_dir="${AA_DIST_DIR:-${repo_root}/dist/releases/${version}}"
 
 identity="${AA_CODESIGN_IDENTITY:-}"
 notary_key="${AA_NOTARY_KEY:-}"
@@ -36,12 +41,13 @@ require_env AA_CODESIGN_IDENTITY
 require_env AA_NOTARY_KEY
 require_env AA_NOTARY_KEY_ID
 require_env AA_NOTARY_ISSUER
+mac_assert_application_identity "$identity"
 
 if [ "${AA_SKIP_BUILD:-0}" != "1" ]; then
   echo "== configure (Release)"
   generator=()
   command -v ninja >/dev/null && generator=(-G Ninja)
-  cmake -S . -B "$build_dir" "${generator[@]}" -DCMAKE_BUILD_TYPE=Release -DAA_PLUGINS=duck
+  cmake -S . -B "$build_dir" "${generator[@]}" -DCMAKE_BUILD_TYPE=Release -DAA_PLUGINS=duck -DAA_LOCAL_BUILD=OFF
   echo "== build Duck_VST3"
   cmake --build "$build_dir" --target Duck_VST3 --config Release --parallel
 fi
@@ -80,10 +86,23 @@ echo "== spctl verify"
 spctl -a -vv -t install "$bundle"
 
 mkdir -p "$dist_dir"
-out_zip="${dist_dir}/${zip_name}"
-ditto -c -k --keepParent "$bundle" "$out_zip"
-shasum -a 256 "$out_zip"
+
+echo "== macOS .pkg installer (primary Mac download)"
+scripts/build_mac_duck_pkg.sh "$bundle" "$version" "$dist_dir"
+out_pkg="${dist_dir}/${pkg_name}"
+
+if [ "${AA_BUILD_MAC_ZIP:-0}" = "1" ]; then
+  cp docs/EULA.md "$work/Animal-Audio-Duck-EULA.txt"
+  cp docs/THIRD_PARTY_NOTICES.md "$work/Third-Party-Notices.txt"
+  out_zip="${dist_dir}/${zip_name}"
+  (
+    cd "$work"
+    zip -r -X "$out_zip" Duck.vst3 Animal-Audio-Duck-EULA.txt Third-Party-Notices.txt
+  )
+  shasum -a 256 "$out_zip"
+  echo "Optional zip: $out_zip"
+fi
 
 echo ""
-echo "Release artifact: $out_zip"
-echo "Upload to Supabase Storage: duck/${version}/${zip_name}"
+echo "Primary Mac release (upload this): $out_pkg"
+echo "Supabase Storage: duck/${version}/${pkg_name}"

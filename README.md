@@ -45,6 +45,7 @@ and [AGENTS.md](AGENTS.md).
 | Plugin | What it does | Source | Status |
 | --- | --- | --- | --- |
 | **Duck** | Tempo-synced volume ducking with a draggable curve editor, 16 preset shapes and a big MIX knob | `plugins/duck` | Alpha: builds as VST3, all tests pass, passes pluginval level 10 on Linux; not yet tried in a real DAW |
+| **Ice Penguin** | Glacial stereo reverb with 12 ice-themed presets and trim controls | `plugins/icepenguin` | Alpha: VST3 builds, plugin tests pass; not yet tried in a real DAW |
 <!-- PLUGINS:END -->
 
 More animals are on the way. Adding one takes a single command (or the `/vst` agent skill), see [Adding a plugin](#adding-a-plugin).
@@ -75,6 +76,18 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
 > (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
+
+## Ice Penguin
+
+A glacial stereo reverb: pick one of twelve ice-themed spaces (Glacier Hall, Aurora Shimmer, Igloo Chamber, …),
+then trim **MIX**, **DECAY**, **TONE**, **PREDELAY**, and **SIZE**. The engine is a Schroeder-style comb/allpass
+network with predelay and smoothed parameters so automation stays click-free.
+
+<p align="center">
+  <img src="docs/images/icepenguin-ui.png" alt="Ice Penguin by Animal Audio" width="760">
+</p>
+
+> Screenshot from `AA_SCREENSHOT_DIR=docs/images ./build/plugins/icepenguin/IcePenguinTests "icepenguin: editor renders headlessly"`.
 
 ## Build
 
@@ -140,10 +153,11 @@ They are unsigned: on macOS run `xattr -dr com.apple.quarantine <Plugin>.vst3` a
 Mac builds for the website must be **Developer ID signed and notarized** before upload.
 
 1. Complete [docs/APPLE_DEVELOPER_SETUP.md](docs/APPLE_DEVELOPER_SETUP.md).
-2. Run `./scripts/release_mac_duck.sh` → `dist/releases/<version>/Duck-<version>-mac-vst3.zip`.
-3. Windows: `.\scripts\package_win_duck.ps1` after a Release build.
+2. Run the pipeline: `./scripts/release_duck.sh` (optionally `--upload`) — see [docs/RELEASE.md](docs/RELEASE.md).
+3. Validate an existing zip: `python3 scripts/validate_duck_release.py --platform mac --zip … --require-notarized`.
+4. Windows: `.\scripts\release_win_duck.ps1 -Upload` (or GitHub Actions → **Release Duck (Windows)**).
 
-Upload paths and Supabase steps live in the **animal-audio-web** repo: `docs/DOWNLOADS_LAUNCH.md`.
+Upload paths and Supabase steps: [docs/RELEASE.md](docs/RELEASE.md) and **animal-audio-web** `docs/DOWNLOADS_LAUNCH.md`.
 
 ## Repository layout
 
@@ -191,8 +205,8 @@ its own DSP. See [AGENTS.md](AGENTS.md) for the policy, conventions and realtime
   round-trip, mouse editing, headless UI render, real synthetic mouse events through a native window at several UI scales) on Linux. The Linux VST3 also passes pluginval at strictness 10. It has not yet been loaded in Ableton Live
   or validated with Steinberg's own `validator`; macOS and Windows builds are configured in CI but
   unverified until the first workflow run.
-- The repository has no open-source license yet (see [LICENSE](LICENSE)). JUCE and the VST3 SDK are
-  AGPL/GPL or commercially licensed, so decide on licensing before distributing binaries.
+- Source and binaries are proprietary; see [LICENSE](LICENSE), [docs/EULA.md](docs/EULA.md), and the
+  [licensing checklist](docs/LICENSING.md) (JUCE Starter/Indie/Pro tier must match your revenue/funding).
 - Duck is an original design inspired by the general idea of volume-shaper ducking tools. It does not
   use any third-party branding or assets.
 

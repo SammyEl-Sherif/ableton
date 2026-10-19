@@ -25,7 +25,11 @@ BuildInfo getBuildInfo() noexcept
 juce::String buildStampShort()
 {
     const auto info = getBuildInfo();
-    return juce::String(info.version) + " | " + info.gitSha + kShaSuffix + " | " + info.date;
+    auto text = juce::String(info.version) + " | " + info.gitSha + kShaSuffix + " | " + info.date;
+#if AA_BUILD_LOCAL
+    text << " | local";
+#endif
+    return text;
 }
 
 juce::String buildStampLong(const juce::String& pluginName)
