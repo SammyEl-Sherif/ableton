@@ -13,4 +13,4 @@ if [[ "$(uname -s)" == Darwin ]]; then
     copy_flag=(-DAA_COPY_PLUGINS_AFTER_BUILD=ON)
 fi
 
-cmake -S . -B "$build_dir" "${generator[@]}" -DCMAKE_BUILD_TYPE=Release "${copy_flag[@]}" "$@"
+cmake -S . -B "$build_dir" "${generator[@]}" -DCMAKE_BUILD_TYPE=Release -DAA_LOCAL_BUILD=ON "${copy_flag[@]}" "$@"

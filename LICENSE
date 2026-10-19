@@ -1,12 +1,12 @@
-Copyright (c) 2026 Animal Audio. All rights reserved.
+Copyright (c) 2026 Animal Audio (Workpace Technology LLC). All rights reserved.
 
-No open-source license has been chosen for this repository yet. Until one is added here, no
-permission is granted to copy, modify, or distribute the source code or the built plugins.
+This repository and the Animal Audio plugin source code are proprietary. No license is
+granted to copy, modify, merge, publish, distribute, sublicense, or sell copies of this
+source code except as expressly authorized in writing by Animal Audio.
 
-Third-party components keep their own licenses and are fetched at build time, not vendored:
-  - JUCE (https://juce.com): AGPLv3 or commercial license
-  - VST3 SDK (bundled with JUCE): GPLv3 or Steinberg proprietary license
-  - Catch2 (tests only): BSL-1.0
+**Binary plugins** (e.g. Duck.vst3) are governed by the End User License Agreement in
+docs/EULA.md, not this file.
 
-Distributing a closed-source plugin built with JUCE requires a JUCE commercial license and the
-VST3 SDK license terms from Steinberg. Decide on licensing before any public release.
+Third-party components used at build time retain their own licenses; see docs/THIRD_PARTY_NOTICES.md
+and docs/LICENSING.md. Distributing compiled plugins requires compliance with those terms
+(including a JUCE commercial license for closed-source releases).

@@ -73,12 +73,21 @@ def default_scope(os_name: str) -> str:
 # ---------------------------------------------------------------- repo knowledge
 
 def plugin_names() -> list[str]:
-    """Product names of every plugin under plugins/ (what the .vst3 bundles are called)."""
+    """Base product names from each plugin's CMakeLists (release .vst3 name, without Local suffix)."""
     names = []
     for cmake in sorted((ROOT / "plugins").glob("*/CMakeLists.txt")):
         match = re.search(r'aa_add_plugin\(\s*\w+\s+PRODUCT_NAME\s+"([^"]+)"', cmake.read_text(encoding="utf-8"))
         names.append(match.group(1) if match else cmake.parent.name.capitalize())
     return names
+
+
+def installed_product_names() -> list[str]:
+    """Names to scan in VST3 folders (release bundle plus optional dev `… Local.vst3`)."""
+    expanded: list[str] = []
+    for name in plugin_names():
+        expanded.append(name)
+        expanded.append(f"{name} Local")
+    return expanded
 
 
 def find_bundles(build_dir: Path, only: Optional[set[str]] = None) -> list[Path]:
@@ -96,8 +105,15 @@ def find_bundles(build_dir: Path, only: Optional[set[str]] = None) -> list[Path]
     return result
 
 
-def bundle_product(bundle_name: str) -> str:
+def bundle_vst3_stem(bundle_name: str) -> str:
     return bundle_name[: -len(".vst3")] if bundle_name.endswith(".vst3") else bundle_name
+
+
+def bundle_product(bundle_name: str) -> str:
+    stem = bundle_vst3_stem(bundle_name)
+    if stem.endswith(" Local"):
+        stem = stem[: -len(" Local")]
+    return stem.replace(" ", "").lower()
 
 
 def binary_of(bundle: Path) -> Optional[Path]:
@@ -293,7 +309,8 @@ def build_all(runner: Runner, build_dir: Path, clean: bool, only: Optional[set[s
             raise SystemExit(f"refusing to clean {resolved}: not inside the repository")
         runner.remove(build_dir)
 
-    configure = ["cmake", "-S", str(ROOT), "-B", str(build_dir), "-DCMAKE_BUILD_TYPE=Release", "-DAA_BUILD_TESTS=OFF"]
+    configure = ["cmake", "-S", str(ROOT), "-B", str(build_dir), "-DCMAKE_BUILD_TYPE=Release", "-DAA_BUILD_TESTS=OFF",
+                 "-DAA_LOCAL_BUILD=ON"]
     if shutil.which("ninja") and os_name != "windows":
         configure[1:1] = ["-G", "Ninja"]
     if only:
@@ -367,11 +384,11 @@ def do_install(args, runner: Runner, os_name: str) -> int:
         runner.copy_bundle(bundle, old)
         prepare_for_host(runner, old, os_name)
         if not args.keep_stale:
-            for stale in installed_copies(others, [bundle_product(bundle.name)]):
+            for stale in installed_copies(others, [bundle_vst3_stem(bundle.name)]):
                 runner.say(f"  stale copy in another VST3 folder ({read_stamp(stale) or 'no build stamp'}): {stale}")
                 runner.remove(stale)
         else:
-            for stale in installed_copies(others, [bundle_product(bundle.name)]):
+            for stale in installed_copies(others, [bundle_vst3_stem(bundle.name)]):
                 runner.say(f"  warning: another copy exists at {stale}; a host may load that one instead")
 
     report(runner, [destination_dir / b.name for b in bundles], dry_run=runner.dry_run)
@@ -392,7 +409,11 @@ def report(runner: Runner, paths: list[Path], dry_run: bool) -> None:
 
 def do_uninstall(args, runner: Runner, os_name: str) -> int:
     dirs = [Path(args.prefix).expanduser()] if args.prefix else [d for lst in standard_dirs(os_name).values() for d in lst]
-    copies = installed_copies(dirs, plugin_names())
+    names = installed_product_names()
+    if getattr(args, "only", None):
+        only = {p.strip().lower() for p in args.only.split(",") if p.strip()}
+        names = [n for n in names if n.replace(" Local", "").lower() in only]
+    copies = installed_copies(dirs, names)
     if not copies:
         runner.say("No Animal Audio plugins found in the VST3 folders: " + ", ".join(str(d) for d in dirs))
         return 0
@@ -405,7 +426,7 @@ def do_uninstall(args, runner: Runner, os_name: str) -> int:
 
 def do_list(args, runner: Runner, os_name: str) -> int:
     dirs = [Path(args.prefix).expanduser()] if args.prefix else [d for lst in standard_dirs(os_name).values() for d in lst]
-    copies = installed_copies(dirs, plugin_names())
+    copies = installed_copies(dirs, installed_product_names())
     head = repo_head()
     runner.say(f"This checkout is at {head or 'unknown'}. Animal Audio plugins installed on this machine:")
     if not copies:

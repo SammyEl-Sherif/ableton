@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Duck by Animal Audio</title>
+    <organization>com.animalaudio</organization>
+    <domains enable_anywhere="true" enable_localSystem="true" enable_currentUserHome="true"/>
+    <options customize="always" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <license file="EULA.txt"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <choices-outline>
+        <line choice="default"/>
+    </choices-outline>
+    <choice id="default" title="Duck">
+        <pkg-ref id="com.animalaudio.duck.vst3"/>
+    </choice>
+    <pkg-ref id="com.animalaudio.duck.vst3" version="__VERSION__" installKBytes="1600" auth="Root">#duck-component.pkg</pkg-ref>
+</installer-gui-script>
