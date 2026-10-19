@@ -1,5 +1,8 @@
 #include <animalaudio/testing/NativeWindowSupport.h>
 
+#include <cstdlib>
+#include <cstring>
+
 #if defined(__linux__)
 #include <X11/Xlib.h>
 
@@ -12,6 +15,11 @@ namespace animalaudio::testing
 {
 bool prepareNativeWindows()
 {
+    // These tests move the real OS pointer, which hijacks the mouse of whoever is working on the machine.
+    const char* optIn = std::getenv("AA_REAL_MOUSE_TESTS");
+    if (optIn == nullptr || std::strcmp(optIn, "1") != 0)
+        return false;
+
 #if defined(__linux__)
     // Kept open on purpose: a bare X server forgets every atom when its last client disconnects.
     static Display* display = XOpenDisplay(nullptr);

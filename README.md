@@ -242,9 +242,9 @@ its own DSP. See [AGENTS.md](AGENTS.md) for the policy, conventions and realtime
 - Quail was built and tested on macOS (arm64). Covered: drawn versus measured response for every shape;
   side-chain and spectral ducking through the real side-chain bus; stereo placement; click-free changes;
   block-size independence; latency reporting and bypass compensation; state; mouse editing; headless UI
-  render; pluginval at strictness 10. Its real-mouse test (native window, several UI scales) needs an unlocked
-  display: it was skipped on the Mac it was built on and is left to CI (Linux, Xvfb). It has not yet been
-  loaded in Ableton Live; Linux/Windows rely on CI.
+  render; pluginval at strictness 10. The real-mouse tests (native window, several UI scales) move the OS
+  pointer, so they only run with `AA_REAL_MOUSE_TESTS=1` (CI sets it; Linux runs them under Xvfb) and were
+  skipped on the Mac it was built on. It has not yet been loaded in Ableton Live; Linux/Windows rely on CI.
 - The repository has no open-source license yet (see [LICENSE](LICENSE)). JUCE and the VST3 SDK are
   AGPL/GPL or commercially licensed, so decide on licensing before distributing binaries.
 - Duck is an original design inspired by the general idea of volume-shaper ducking tools; Quail by the

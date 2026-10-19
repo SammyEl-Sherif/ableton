@@ -55,6 +55,8 @@ jobs:
 
       - name: Test
         shell: bash
+        env:
+          AA_REAL_MOUSE_TESTS: "1"
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             xvfb-run -a ctest --test-dir build -C Release --output-on-failure
