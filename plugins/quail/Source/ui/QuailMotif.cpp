@@ -1,144 +1,13 @@
 #include "QuailMotif.h"
 
-#include <cmath>
-
 namespace quail::ui
 {
 using animalaudio::ui::Palette;
 
-juce::Path QuailMotif::makePlume(juce::Point<float> base, float size)
+namespace
 {
-    juce::Path p;
-    p.startNewSubPath(-0.07f, 0.0f);
-    p.cubicTo(-0.11f, -0.36f, -0.03f, -0.66f, 0.17f, -0.81f);
-    p.cubicTo(0.30f, -0.93f, 0.53f, -0.87f, 0.51f, -0.70f);
-    p.cubicTo(0.49f, -0.57f, 0.35f, -0.54f, 0.24f, -0.62f);
-    p.cubicTo(0.12f, -0.52f, 0.07f, -0.30f, 0.07f, 0.0f);
-    p.closeSubPath();
-    p.applyTransform(juce::AffineTransform::scale(size).translated(base));
-    return p;
-}
-
-void QuailMotif::drawMascot(juce::Graphics& g, juce::Rectangle<float> area, const Palette& palette) const
+juce::Path scaleField(juce::Rectangle<float> area, float cell)
 {
-    const float w = area.getWidth();
-    const float h = area.getHeight();
-    const auto at = [&](float fx, float fy) { return juce::Point<float>(area.getX() + fx * w, area.getY() + fy * h); };
-    const auto box = [&](float cx, float cy, float bw, float bh)
-    { return juce::Rectangle<float>(bw * w, bh * h).withCentre(at(cx, cy)); };
-
-    // shadow, legs, tail
-    g.setColour(palette.background.withAlpha(0.5f));
-    g.fillEllipse(box(0.5f, 0.95f, 0.62f, 0.07f));
-    g.setColour(palette.detail.withAlpha(0.7f));
-    for (float x : {0.42f, 0.56f})
-        g.drawLine(juce::Line<float>(at(x, 0.82f), at(x - 0.02f, 0.94f)), 0.035f * w);
-
-    juce::Path tail;
-    tail.startNewSubPath(at(0.24f, 0.55f));
-    tail.lineTo(at(0.04f, 0.47f));
-    tail.lineTo(at(0.08f, 0.62f));
-    tail.closeSubPath();
-    g.setColour(palette.ambient.darker(0.5f));
-    g.fillPath(tail);
-
-    // body
-    const auto body = box(0.47f, 0.62f, 0.64f, 0.46f);
-    g.setGradientFill(juce::ColourGradient(palette.ambient.brighter(0.25f), body.getX(), body.getY(),
-                                           palette.ambient.darker(0.55f), body.getRight(), body.getBottom(), false));
-    g.fillEllipse(body);
-
-    // chestnut belly with cream-edged scales
-    const auto belly = box(0.58f, 0.74f, 0.34f, 0.2f);
-    g.setColour(palette.accentAlt.withAlpha(0.9f));
-    g.fillEllipse(belly);
-    juce::Path scales;
-    const float s = 0.05f * w;
-    for (int row = 0; row < 2; ++row)
-        for (int col = 0; col < 4; ++col)
-        {
-            const auto c = at(0.47f + 0.065f * static_cast<float>(col) + (row == 1 ? 0.03f : 0.0f),
-                              0.7f + 0.06f * static_cast<float>(row));
-            scales.addCentredArc(c.x, c.y, s * 0.5f, s * 0.5f, 0.0f, juce::MathConstants<float>::halfPi,
-                                 juce::MathConstants<float>::pi * 1.5f, true);
-        }
-    g.setColour(palette.detail.withAlpha(0.75f));
-    g.strokePath(scales, juce::PathStrokeType(0.018f * w));
-
-    // wing with cream streaks
-    juce::Path wing;
-    wing.addEllipse(box(0.36f, 0.58f, 0.36f, 0.22f));
-    wing.applyTransform(juce::AffineTransform::rotation(-0.25f, at(0.36f, 0.58f).x, at(0.36f, 0.58f).y));
-    g.setColour(palette.ambient.darker(0.35f));
-    g.fillPath(wing);
-    g.setColour(palette.detail.withAlpha(0.55f));
-    for (int i = 0; i < 3; ++i)
-    {
-        const float y = 0.53f + 0.045f * static_cast<float>(i);
-        g.drawLine(juce::Line<float>(at(0.24f, y + 0.03f), at(0.46f, y - 0.02f)), 0.014f * w);
-    }
-
-    // head: dark face and throat ringed by the cream stripe
-    const auto head = box(0.72f, 0.34f, 0.3f, 0.3f);
-    g.setColour(palette.ambient.darker(0.15f));
-    g.fillEllipse(head);
-    juce::Path throat;
-    throat.addEllipse(box(0.77f, 0.42f, 0.17f, 0.15f));
-    g.setColour(palette.background);
-    g.fillPath(throat);
-    g.setColour(palette.detail);
-    g.strokePath(throat, juce::PathStrokeType(0.022f * w));
-    g.drawLine(juce::Line<float>(at(0.65f, 0.28f), at(0.84f, 0.27f)), 0.022f * w);
-
-    // eye and beak
-    g.setColour(palette.text);
-    g.fillEllipse(box(0.76f, 0.31f, 0.065f, 0.065f));
-    g.setColour(palette.background);
-    g.fillEllipse(box(0.767f, 0.31f, 0.032f, 0.032f));
-    juce::Path beak;
-    beak.startNewSubPath(at(0.85f, 0.32f));
-    beak.lineTo(at(0.95f, 0.36f));
-    beak.lineTo(at(0.85f, 0.39f));
-    beak.closeSubPath();
-    g.setColour(palette.background.brighter(0.2f));
-    g.fillPath(beak);
-
-    // the topknot
-    const auto plume = makePlume(at(0.7f, 0.21f), 0.24f * h);
-    g.setColour(palette.accent.withAlpha(0.3f));
-    g.strokePath(plume, juce::PathStrokeType(0.04f * w));
-    g.setColour(palette.accent);
-    g.fillPath(plume);
-}
-
-void QuailMotif::drawKnobCap(juce::Graphics& g, juce::Point<float> centre, float radius, float angle,
-                             const Palette& palette) const
-{
-    const auto disc = juce::Rectangle<float>(radius * 2.0f, radius * 2.0f).withCentre(centre);
-    g.setGradientFill(juce::ColourGradient(palette.panelRaised.brighter(0.15f), disc.getX(), disc.getY(),
-                                           palette.background, disc.getRight(), disc.getBottom(), false));
-    g.fillEllipse(disc);
-    g.setColour(palette.outline);
-    g.drawEllipse(disc.reduced(radius * 0.16f), 1.0f);
-    g.setColour(palette.background.withAlpha(0.8f));
-    g.drawEllipse(disc, 1.2f);
-
-    const auto plume = makePlume({0.0f, -radius * 0.12f}, radius * 0.86f).createPathWithRoundedCorners(radius * 0.02f);
-    const auto toKnob = juce::AffineTransform::rotation(angle).translated(centre);
-    g.setColour(palette.accent.withAlpha(0.28f));
-    g.strokePath(plume, juce::PathStrokeType(radius * 0.12f), toKnob);
-    g.setColour(palette.accent);
-    g.fillPath(plume, toKnob);
-
-    g.setColour(palette.detail);
-    g.fillEllipse(juce::Rectangle<float>(radius * 0.2f, radius * 0.2f).withCentre(centre));
-}
-
-void QuailMotif::drawAmbient(juce::Graphics& g, juce::Rectangle<float> area, double timeSeconds,
-                             const Palette& palette) const
-{
-    // scalloped belly scales, fading out upwards
-    const float cell = 22.0f;
     juce::Path scales;
     const int rows = static_cast<int>(area.getHeight() / (cell * 0.6f)) + 1;
     const int cols = static_cast<int>(area.getWidth() / cell) + 2;
@@ -150,30 +19,109 @@ void QuailMotif::drawAmbient(juce::Graphics& g, juce::Rectangle<float> area, dou
             scales.addCentredArc(x, y, cell * 0.5f, cell * 0.5f, 0.0f, juce::MathConstants<float>::halfPi,
                                  juce::MathConstants<float>::pi * 1.5f, true);
         }
-    g.setGradientFill(juce::ColourGradient(palette.ambient.withAlpha(0.0f), 0.0f, area.getY(),
-                                           palette.ambient.withAlpha(0.09f), 0.0f, area.getBottom(), false));
-    g.strokePath(scales, juce::PathStrokeType(1.0f));
+    return scales;
+}
+} // namespace
 
-    // a slow scan of light sweeping across
-    const float t = static_cast<float>(std::fmod(timeSeconds / 14.0, 1.0));
-    const float x = area.getX() + (t * 1.6f - 0.3f) * area.getWidth();
-    juce::ColourGradient sweep(palette.accent.withAlpha(0.0f), x - 160.0f, 0.0f, palette.accent.withAlpha(0.0f),
-                               x + 160.0f, 0.0f, false);
-    sweep.addColour(0.5, palette.accent.withAlpha(0.035f));
-    g.setGradientFill(sweep);
-    g.fillRect(area);
+juce::Path QuailMotif::makePlume(juce::Point<float> base, float size)
+{
+    juce::Path p;
+    p.startNewSubPath(-0.09f, 0.0f);
+    p.cubicTo(-0.13f, -0.36f, -0.05f, -0.66f, 0.15f, -0.82f);
+    p.cubicTo(0.3f, -0.95f, 0.58f, -0.9f, 0.56f, -0.7f);
+    p.cubicTo(0.54f, -0.54f, 0.36f, -0.5f, 0.24f, -0.6f);
+    p.cubicTo(0.13f, -0.5f, 0.09f, -0.3f, 0.09f, 0.0f);
+    p.closeSubPath();
+    p.applyTransform(juce::AffineTransform::scale(size).translated(base));
+    return p;
+}
+
+void QuailMotif::drawMascot(juce::Graphics& g, juce::Rectangle<float> area, const Palette& palette) const
+{
+    const float w = area.getWidth();
+    const float h = area.getHeight();
+    const auto at = [&](float fx, float fy) { return juce::Point<float>(area.getX() + fx * w, area.getY() + fy * h); };
+
+    // one teardrop silhouette facing right: beak, crown, back, cocked tail, round belly, chest, throat
+    juce::Path body;
+    body.startNewSubPath(at(0.93f, 0.405f));
+    body.quadraticTo(at(0.86f, 0.33f), at(0.8f, 0.3f));
+    body.cubicTo(at(0.76f, 0.22f), at(0.62f, 0.22f), at(0.6f, 0.32f));
+    body.cubicTo(at(0.58f, 0.4f), at(0.5f, 0.42f), at(0.4f, 0.44f));
+    body.cubicTo(at(0.3f, 0.46f), at(0.22f, 0.5f), at(0.16f, 0.5f));
+    body.lineTo(at(0.05f, 0.46f));
+    body.cubicTo(at(0.08f, 0.55f), at(0.12f, 0.6f), at(0.17f, 0.62f));
+    body.cubicTo(at(0.18f, 0.8f), at(0.32f, 0.9f), at(0.48f, 0.9f));
+    body.cubicTo(at(0.68f, 0.9f), at(0.82f, 0.76f), at(0.83f, 0.58f));
+    body.cubicTo(at(0.84f, 0.5f), at(0.86f, 0.45f), at(0.89f, 0.43f));
+    body.closeSubPath();
+    const auto bounds = body.getBounds();
+    g.setGradientFill(juce::ColourGradient(palette.accent, bounds.getX(), bounds.getY(), palette.accentAlt.darker(0.5f),
+                                           bounds.getRight(), bounds.getBottom(), false));
+    g.fillPath(body);
+
+    // wing line and belly scales cut into the silhouette
+    g.setColour(palette.background.withAlpha(0.4f));
+    juce::Path wing;
+    wing.startNewSubPath(at(0.26f, 0.58f));
+    wing.quadraticTo(at(0.44f, 0.56f), at(0.62f, 0.7f));
+    g.strokePath(wing, juce::PathStrokeType(0.028f * w, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    juce::Path scales;
+    for (int row = 0; row < 2; ++row)
+        for (int col = 0; col < 3; ++col)
+        {
+            const auto c = at(0.5f + 0.075f * static_cast<float>(col) - (row == 1 ? 0.035f : 0.0f),
+                              0.75f + 0.07f * static_cast<float>(row));
+            scales.addCentredArc(c.x, c.y, 0.03f * w, 0.03f * w, 0.0f, juce::MathConstants<float>::halfPi,
+                                 juce::MathConstants<float>::pi * 1.5f, true);
+        }
+    g.strokePath(scales, juce::PathStrokeType(0.02f * w));
+
+    // cream face stripe over the eye, the eye itself
+    juce::Path stripe;
+    stripe.startNewSubPath(at(0.66f, 0.31f));
+    stripe.quadraticTo(at(0.76f, 0.275f), at(0.85f, 0.335f));
+    g.setColour(palette.detail);
+    g.strokePath(stripe, juce::PathStrokeType(0.024f * w, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.setColour(palette.background);
+    g.fillEllipse(juce::Rectangle<float>(0.05f * w, 0.05f * w).withCentre(at(0.785f, 0.36f)));
+
+    g.setColour(palette.text);
+    g.fillPath(makePlume(at(0.72f, 0.255f), 0.26f * h));
+}
+
+void QuailMotif::drawKnobCap(juce::Graphics& g, juce::Point<float> centre, float radius, float angle,
+                             const Palette& palette) const
+{
+    const auto disc = juce::Rectangle<float>(radius * 2.0f, radius * 2.0f).withCentre(centre);
+    g.setColour(palette.background.withAlpha(0.75f));
+    g.fillEllipse(disc.translated(0.0f, radius * 0.1f).expanded(radius * 0.03f));
+    g.setGradientFill(juce::ColourGradient(palette.panelRaised.brighter(0.22f), centre.x, disc.getY(),
+                                           palette.panel.darker(0.15f), centre.x, disc.getBottom(), false));
+    g.fillEllipse(disc);
+    g.setGradientFill(juce::ColourGradient(palette.text.withAlpha(0.16f), centre.x, disc.getY(),
+                                           palette.text.withAlpha(0.0f), centre.x, centre.y + radius * 0.3f, false));
+    g.drawEllipse(disc.reduced(0.5f), 1.0f);
+    g.setColour(palette.text.withAlpha(0.04f));
+    g.drawEllipse(disc.reduced(radius * 0.18f), 1.0f);
+
+    const auto plume = makePlume({0.0f, -radius * 0.3f}, radius * 0.6f);
+    g.setColour(palette.text);
+    g.fillPath(plume, juce::AffineTransform::rotation(angle).translated(centre));
+}
+
+void QuailMotif::drawAmbient(juce::Graphics& g, juce::Rectangle<float> area, double timeSeconds,
+                             const Palette& palette) const
+{
+    juce::ignoreUnused(timeSeconds);
+    g.setGradientFill(juce::ColourGradient(palette.ambient.withAlpha(0.0f), 0.0f, area.getY(),
+                                           palette.ambient.withAlpha(0.06f), 0.0f, area.getBottom(), false));
+    g.strokePath(scaleField(area, 18.0f), juce::PathStrokeType(1.0f));
 }
 
 void QuailMotif::drawDecoration(juce::Graphics& g, juce::Rectangle<float> panelArea, const Palette& palette) const
 {
-    juce::Random random(184);
-    g.setColour(palette.detail.withAlpha(0.06f));
-    for (int i = 0; i < 18; ++i)
-    {
-        const float x = panelArea.getX() + random.nextFloat() * panelArea.getWidth();
-        const float y = panelArea.getY() + random.nextFloat() * panelArea.getHeight();
-        const float size = 6.0f + random.nextFloat() * 8.0f;
-        g.fillPath(makePlume({x, y}, size), juce::AffineTransform::rotation(random.nextFloat() * 6.28f, x, y));
-    }
+    g.setColour(palette.ambient.withAlpha(0.05f));
+    g.strokePath(scaleField(panelArea.withTop(panelArea.getBottom() - 40.0f), 14.0f), juce::PathStrokeType(1.0f));
 }
 } // namespace quail::ui

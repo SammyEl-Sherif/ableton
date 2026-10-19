@@ -49,8 +49,8 @@ shared/ui/            animalaudio::ui   INTERFACE lib whose .cpp files compile i
   Theme.h             Theme { Palette, name, tagline, Motif }; Motif = the animal (mascot, knob cap, ambient, decoration)
   ThemedPanel.h       editor backdrop, side panel (motif ambient + decoration), title block (NAME, tagline, mascot), build stamp
   ShaperEditor        optional shared curve-shaper editor (Duck uses it at 820x470); not required for every plugin
-  BrandBadge, PillButton, ChoicePillRow, RotaryKnob (setArcOrigin for bipolar)/ThemedKnob, CurveEditor,
-  CurvePresetPanel, Drawing.h
+  BrandBadge, PillButton, ChoicePillRow (optional pill factory + gap for custom pills), RotaryKnob
+  (setArcOrigin/getArcOrigin for bipolar)/ThemedKnob, CurveEditor, CurvePresetPanel, Drawing.h
 shared/testing/       animalaudio::testing header-only Catch2 suites: AA_SHAPER_PLUGIN_TESTS, AA_GAIN_SHAPER_PLUGIN_TESTS,
                       AA_REAL_MOUSE_PLUGIN_TESTS; TestKit.h, RealMouseSuite.h (DesktopEditor), prepareNativeWindows()
 plugins/duck/         only what is Duck-specific:
@@ -66,7 +66,8 @@ plugins/quail/        custom processor + editor (not the shaper stack):
                       QuailSpectral (per-bin spectral dynamics on the Stft frames + display data)
   Source/ui/          QuailTheme (palette, kThemeHue, band/placement colours), QuailMotif (quail, plume knob pointer,
                       feather scales), EqDisplay (analyser + curves + nodes + mouse), BandPanel, BandActions
-                      (parameter gestures), Widgets (MenuPill, ValueChip, QuailKnob, ThresholdBar, OutputMeter)
+                      (parameter gestures), Widgets (QuailToggle chip/segment, MenuPill, ValueChip, QuailKnob,
+                      ThresholdBar, OutputMeter, QuailLookAndFeel)
   tests/              QuailDspTests (engine), QuailProcessorTests (params, buses, latency, state),
                       QuailEditorTests (mouse editing, panel, persistence, headless render, real mouse)
 templates/plugin/     starter copied by scripts/new_plugin.py (placeholders __NAME__, __NAME_LOWER__, __HUE__, ...)
@@ -97,7 +98,9 @@ scripts/verify_plugin.sh Duck                               # build + ctest + sc
 - Linux needs the X11/ALSA/freetype dev packages listed in README.md. Most tests do not need a display: UI is
   rendered to an `Image` via `createComponentSnapshot`. The `real mouse` suite (`shared/testing/.../RealMouseSuite.h`,
   `AA_REAL_MOUSE_PLUGIN_TESTS`) puts the editor in a native window and injects events through `ComponentPeer`, at several
-  editor/desktop scales; it needs a display, so run ctest as `xvfb-run -a ctest ...` on Linux (it skips without one) and
+  editor/desktop scales. It moves the real OS pointer, so it is **opt-in**: it skips unless `AA_REAL_MOUSE_TESTS=1` is
+  set (CI sets it). Agents: never set it on a developer's machine, it takes over their mouse; run it only under Xvfb or
+  when the user asks. It needs a display, so run ctest as `AA_REAL_MOUSE_TESTS=1 xvfb-run -a ctest ...` on Linux and
   keep those tests serial (`RESOURCE_LOCK native_display` in each plugin's `catch_discover_tests`): they move the
   real OS pointer, so two at once on one X server fight over it. On macOS it also skips while the screen is locked
   (`prepareNativeWindows()` checks): JUCE's mac peers only take events where their window is topmost, so a locked
@@ -260,10 +263,12 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
   Three `SampleFifo`s (pre, post, side chain) feed `SpectrumAnalyser`s on the editor's 30 Hz timer. Editor state
   (analyser toggles, display range, window size) lives in the `QuailUi` child of `apvts.state`.
 - UI (`QuailEditor`, resizable 960x600 to 2200x1400, default 1080x660): top bar (brand badge + build stamp, mascot,
-  QUAIL, band count, spectral resolution pills + latency, side-chain status, BYPASS); `EqDisplay` (analyser, band
-  fills, dashed range curves, live totals per placement, side-chain collisions, nodes with `L`/`R`/`M`/`S`/`SC`/`SPEC`
-  tags and range diamonds); the floating `BandPanel` for the selected band; bottom bar (analyser PRE/POST/SC, display
-  range, AUTO GAIN, PHASE, SCALE, PAN, OUTPUT); `OutputMeter` (L, R, SC). Mouse: double-click adds/removes, drag =
+  QUAIL, band count, spectral resolution segmented control + latency, side-chain status, BYPASS); `EqDisplay`
+  (rounded card: analyser, band fills only for selected/hovered bands, dashed range curves, live totals per placement
+  with a soft glow, side-chain collisions, nodes with `L`/`R`/`M`/`S`/`SC`/`SPEC` tags and range diamonds, an empty-state
+  hint); the floating `BandPanel` card (cached drop shadow in a transparent margin, `hitTest` limited to the card) for
+  the selected band, tinted in its band colour; bottom bar (analyser PRE/POST/SC segments, display range, AUTO GAIN,
+  PHASE, SCALE, PAN, OUTPUT); `OutputMeter` (L, R, SC). Mouse: double-click adds/removes, drag =
   freq + gain (Q for shapes without gain), Alt = Q, Shift = fine, wheel = Q, lasso, right-click menus; Delete, Esc,
   Cmd+A. Band colours cycle through `bandColour(i)`; tags use `placementColour`, collisions `collisionColour()`.
 
@@ -275,9 +280,13 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
   motif per plugin drawn with `juce::Path` (no bitmap assets, no external fonts).
 - Every plugin has its own palette and its own animal (see "Theme" above); Duck's: yellow `#FFCB1F`, bill orange `#FF8A1F`/`#FF7A1A`, charcoal `#1A1610`/`#241F15`, water blue
   `#4FB6D9` (only as faint ripples). Motifs: rubber duck, bill, feather, water ripples.
-  Quail's (cleaner, more "instrument panel"): plume cyan `#3EE6F0`, coral `#FF9257`, cream face stripe `#F2D9A6`,
-  near-black navy `#070B10`/`#0D131B`/`#16202C`, steel blue `#5B7FA8` (faint feather scales). Motifs: California
-  quail with its curled topknot plume, the plume as knob pointer, scalloped feather scales, plume speckles.
+  Quail's (modern, quiet "studio glass"): neutral graphite base `#0A0B0E`/`#111318`/`#191C22`, one periwinkle accent
+  `#8EA4FF` with lavender `#B6A7FF` as its gradient partner, cream face stripe `#F2E6CF`, slate `#55648A` (faint
+  feather scales). Semantic colours only where they mean something: apricot `#FFA96B` = side chain, rose `#FF6B85` =
+  collisions, amber `#F5C46B` = warnings/bypass; eight matched pastel band colours. Hairlines and chips are white at
+  low alpha, labels are small tracked caps, values bold; colour shows up only on lit lights, arcs, curves and nodes.
+  Motifs: a one-path California quail silhouette with its curled topknot plume, the plume as knob pointer, scalloped
+  feather scales.
 - Plugins may be *inspired by* existing tools' workflows but must not copy their branding, names, art or code.
   (Duck's layout takes cues from volume-shaper plugins, Quail's workflow from modern dynamic/spectral EQs; nothing else.)
 

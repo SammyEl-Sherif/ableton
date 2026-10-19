@@ -1,6 +1,8 @@
 #pragma once
 
-#include <animalaudio/ui/ThemedKnob.h>
+#include <animalaudio/ui/PillButton.h>
+#include <animalaudio/ui/RotaryKnob.h>
+#include <animalaudio/ui/Theme.h>
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -24,6 +26,37 @@ public:
 
 private:
     animalaudio::ui::Palette colours;
+};
+
+/** Rounded track that groups segment-style QuailToggles into one segmented control. */
+void drawSegmentTrack(juce::Graphics&, juce::Rectangle<float> area, const animalaudio::ui::Palette& palette);
+
+/**
+ * Quail's button: a flat chip (hairline outline) or a segment inside drawSegmentTrack(). When on it takes a wash and
+ * the text of its tint (the accent unless set, e.g. the band colour). An optional light before the text marks
+ * buttons that are a state rather than an action; `glyph` (from PillButton) draws an icon, alone or before the text.
+ */
+class QuailToggle : public animalaudio::ui::PillButton
+{
+public:
+    enum class Style
+    {
+        chip,
+        segment
+    };
+
+    QuailToggle(const juce::String& text, const animalaudio::ui::Palette& palette, Style style = Style::chip);
+
+    void setTint(juce::Colour colour);
+    void setShowsLight(bool shown);
+
+    void paintButton(juce::Graphics&, bool isMouseOver, bool isButtonDown) override;
+
+private:
+    animalaudio::ui::Palette colours;
+    Style style;
+    juce::Colour tint;
+    bool light = false;
 };
 
 /** A pill showing a choice parameter's value with a caret; clicking opens the list. */
@@ -66,18 +99,23 @@ private:
 };
 
 /**
- * Band knob with the Quail cap. A gain knob can also show the band's dynamic range as an inner arc from the gain
- * to gain + range, with a dot at the gain the dynamics apply right now.
+ * Band knob: a thin value arc in the band's tint around the Quail cap (the topknot pointer). A gain knob can also
+ * show the band's dynamic range as an inner arc from the gain to gain + range, with a dot at the live gain.
  */
-class QuailKnob : public animalaudio::ui::ThemedKnob
+class QuailKnob : public animalaudio::ui::RotaryKnob
 {
 public:
     explicit QuailKnob(const animalaudio::ui::Theme& theme);
 
+    void setTint(juce::Colour colour);
     void paint(juce::Graphics&) override;
     void setDynamicRange(bool shown, double rangeDb, double liveDb);
 
 private:
+    float angleFor(double value);
+
+    animalaudio::ui::Theme theme;
+    juce::Colour tint;
     bool rangeShown = false;
     double range = 0.0;
     double live = 0.0;
@@ -96,6 +134,7 @@ public:
     explicit ThresholdBar(const animalaudio::ui::Palette& palette);
 
     void attachTo(juce::RangedAudioParameter* threshold, juce::RangedAudioParameter* autoThreshold);
+    void setTint(juce::Colour colour);
     /** Live trigger level and the threshold the band is really using (auto or manual), dB. */
     void setLevels(float triggerDb, float effectiveThresholdDb, bool active);
 
@@ -113,6 +152,7 @@ private:
     bool isAuto() const noexcept;
 
     animalaudio::ui::Palette colours;
+    juce::Colour tint;
     juce::RangedAudioParameter* threshold = nullptr;
     juce::RangedAudioParameter* autoThreshold = nullptr;
     float trigger = -120.0f;

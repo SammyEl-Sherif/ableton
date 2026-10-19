@@ -5,9 +5,9 @@
 namespace quail::ui
 {
 /**
- * The quail: a round slate-blue California quail with its forward-curling teardrop topknot (in the accent colour),
- * cream face stripe and scaled chestnut belly. The knob cap is a dark lens whose pointer is that topknot; the
- * ambient pattern is the scalloped feather scales of the belly.
+ * The quail, drawn as a clean glyph: a California quail silhouette in the accent gradient with a cream face stripe,
+ * cut-out eye and belly scales, crowned by its forward-curling teardrop topknot. The knob cap is a dark lens whose
+ * pointer is that topknot; the ambient pattern is a faint field of scalloped feather scales.
  */
 class QuailMotif : public animalaudio::ui::Motif
 {

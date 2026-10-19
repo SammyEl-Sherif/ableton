@@ -9,17 +9,17 @@ namespace quail::ui
 animalaudio::ui::Palette makePalette()
 {
     animalaudio::ui::Palette p;
-    p.background = juce::Colour(0xff070b10);
-    p.panel = juce::Colour(0xff0d131b);
-    p.panelRaised = juce::Colour(0xff16202c);
-    p.outline = juce::Colour(0xff223040);
-    p.text = juce::Colour(0xffe8f1f8);
-    p.textDim = juce::Colour(0xff7d8fa3);
-    p.accent = juce::Colour(0xff3ee6f0);    // electric plume cyan
-    p.accentAlt = juce::Colour(0xffff9257); // chestnut flank
-    p.onAccent = juce::Colour(0xff031418);
-    p.detail = juce::Colour(0xfff2d9a6);  // face-stripe cream
-    p.ambient = juce::Colour(0xff5b7fa8); // slate-blue plumage
+    p.background = juce::Colour(0xff0a0b0e);
+    p.panel = juce::Colour(0xff111318);
+    p.panelRaised = juce::Colour(0xff191c22);
+    p.outline = juce::Colour(0xff262a32);
+    p.text = juce::Colour(0xffedeff3);
+    p.textDim = juce::Colour(0xff8a919e);
+    p.accent = juce::Colour(0xff8ea4ff);    // periwinkle: the slate-blue breast, lit
+    p.accentAlt = juce::Colour(0xffb6a7ff); // lavender, the accent's gradient partner
+    p.onAccent = juce::Colour(0xff0b0e1c);
+    p.detail = juce::Colour(0xfff2e6cf);  // face-stripe cream
+    p.ambient = juce::Colour(0xff55648a); // slate plumage, only as faint scales
     return p;
 }
 
@@ -36,8 +36,8 @@ animalaudio::ui::Theme makeTheme()
 juce::Colour bandColour(int band)
 {
     static const std::array<juce::Colour, 8> colours{
-        juce::Colour(0xff3ee6f0), juce::Colour(0xff9c8cff), juce::Colour(0xffff6fb5), juce::Colour(0xffffc24a),
-        juce::Colour(0xff9bea5b), juce::Colour(0xff5ab8ff), juce::Colour(0xffff8a5c), juce::Colour(0xff4fe3a8)};
+        juce::Colour(0xff8ea4ff), juce::Colour(0xff67d4c4), juce::Colour(0xfff5a3c7), juce::Colour(0xffebc872),
+        juce::Colour(0xff9ad88a), juce::Colour(0xff74c3f0), juce::Colour(0xffc5a6f7), juce::Colour(0xfff59e92)};
     return colours[static_cast<std::size_t>((band % 8 + 8) % 8)];
 }
 
@@ -46,26 +46,46 @@ juce::Colour placementColour(const animalaudio::ui::Palette& palette, dsp::Place
     switch (placement)
     {
     case dsp::Placement::Left:
-        return juce::Colour(0xfff4f7fa);
+        return juce::Colour(0xff74c3f0);
     case dsp::Placement::Right:
-        return juce::Colour(0xffff6b6b);
+        return juce::Colour(0xfff59e92);
     case dsp::Placement::Mid:
-        return juce::Colour(0xff6be38a);
+        return juce::Colour(0xff9ad88a);
     case dsp::Placement::Side:
-        return juce::Colour(0xff6b8bff);
+        return juce::Colour(0xffc5a6f7);
     case dsp::Placement::Stereo:
         break;
     }
-    return palette.accent;
+    return palette.text;
+}
+
+juce::Colour sidechainColour()
+{
+    return juce::Colour(0xffffa96b);
 }
 
 juce::Colour collisionColour()
 {
-    return juce::Colour(0xffff4d6a);
+    return juce::Colour(0xffff6b85);
 }
 
-juce::Colour dynamicColour(bool boost)
+juce::Colour warningColour()
 {
-    return boost ? juce::Colour(0xff9bea5b) : juce::Colour(0xffffc24a);
+    return juce::Colour(0xfff5c46b);
+}
+
+juce::Font labelFont(float height)
+{
+    return juce::Font(juce::FontOptions(height, juce::Font::plain).withKerningFactor(0.09f));
+}
+
+juce::Font valueFont(float height)
+{
+    return juce::Font(juce::FontOptions(height, juce::Font::bold).withKerningFactor(0.02f));
+}
+
+juce::Font titleFont(float height)
+{
+    return juce::Font(juce::FontOptions(height, juce::Font::bold).withKerningFactor(0.2f));
 }
 } // namespace quail::ui

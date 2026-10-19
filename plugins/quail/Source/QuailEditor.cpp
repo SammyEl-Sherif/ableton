@@ -7,7 +7,7 @@
 
 namespace quail
 {
-using animalaudio::ui::makeFont;
+using ui::QuailToggle;
 
 namespace
 {
@@ -18,9 +18,22 @@ const juce::Identifier kPreId{"analyzerPre"};
 const juce::Identifier kPostId{"analyzerPost"};
 const juce::Identifier kSidechainId{"analyzerSidechain"};
 
-constexpr int kTopBarHeight = 48;
-constexpr int kBottomBarHeight = 44;
-constexpr int kMeterWidth = 30;
+constexpr int kTopBarHeight = 54;
+constexpr int kBottomBarHeight = 50;
+constexpr int kMeterWidth = 26;
+constexpr int kEdge = 18;
+constexpr int kTrackPadding = 3;
+
+void drawPowerGlyph(juce::Graphics& g, juce::Rectangle<float> area, juce::Colour colour)
+{
+    const auto c = area.getCentre();
+    const float r = juce::jmin(area.getWidth(), area.getHeight()) * 0.5f;
+    juce::Path ring;
+    ring.addCentredArc(c.x, c.y, r * 0.8f, r * 0.8f, 0.0f, 0.65f, juce::MathConstants<float>::twoPi - 0.65f, true);
+    g.setColour(colour);
+    g.strokePath(ring, juce::PathStrokeType(1.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.drawLine(c.x, c.y - r, c.x, c.y - r * 0.15f, 1.5f);
+}
 } // namespace
 
 QuailEditor::QuailEditor(QuailProcessor& p)
@@ -34,9 +47,9 @@ QuailEditor::QuailEditor(QuailProcessor& p)
     , bandPanel(actions, theme)
     , meter(theme.palette)
     , bypass("BYPASS", theme.palette)
-    , analyzerPre("PRE", theme.palette)
-    , analyzerPost("POST", theme.palette)
-    , analyzerSidechain("SC", theme.palette)
+    , analyzerPre("PRE", theme.palette, QuailToggle::Style::segment)
+    , analyzerPost("POST", theme.palette, QuailToggle::Style::segment)
+    , analyzerSidechain("SC", theme.palette, QuailToggle::Style::segment)
     , rangeButton("", theme.palette)
     , autoGain("AUTO GAIN", theme.palette)
     , phase("PHASE", theme.palette)
@@ -69,6 +82,12 @@ QuailEditor::QuailEditor(QuailProcessor& p)
         toggle->setClickingTogglesState(true);
         addAndMakeVisible(*toggle);
     }
+    bypass.glyph = [](juce::Graphics& g, juce::Rectangle<float> area, juce::Colour colour)
+    { drawPowerGlyph(g, area, colour); };
+    bypass.setTint(ui::warningColour());
+    autoGain.setShowsLight(true);
+    phase.setShowsLight(true);
+    analyzerSidechain.setTint(ui::sidechainColour());
     bypass.setTooltip("Bypass (latency stays compensated)");
     autoGain.setTooltip("Auto gain: compensate the loudness change of the static EQ curve");
     phase.setTooltip("Invert the output polarity");
@@ -104,7 +123,10 @@ QuailEditor::QuailEditor(QuailProcessor& p)
     jassert(resolutionParam != nullptr);
     resolution = std::make_unique<animalaudio::ui::ChoicePillRow>(
         *resolutionParam, theme.palette,
-        "Spectral resolution: frequency detail of spectral bands vs. the latency they add");
+        "Spectral resolution: frequency detail of spectral bands vs. the latency they add",
+        [this](const juce::String& text)
+        { return std::make_unique<QuailToggle>(text.toUpperCase(), theme.palette, QuailToggle::Style::segment); });
+    resolution->setGap(2);
     addAndMakeVisible(*resolution);
 
     loadUiState();
@@ -218,17 +240,17 @@ void QuailEditor::placeBandPanel()
 {
     const auto area = display.getBounds();
     const int width = juce::jmin(ui::BandPanel::kWidth, area.getWidth() - 24);
-    auto bounds = juce::Rectangle<int>(area.getCentreX() - width / 2, area.getBottom() - 12 - ui::BandPanel::kHeight,
-                                       width, ui::BandPanel::kHeight);
+    auto card = juce::Rectangle<int>(area.getCentreX() - width / 2, area.getBottom() - 14 - ui::BandPanel::kHeight,
+                                     width, ui::BandPanel::kHeight);
     const int band = display.getSelectedBand();
     if (band >= 0)
     {
         // keep the selected node visible: move the panel to the top when the node sits under it
         const auto node = display.nodePosition(band).toInt() + area.getPosition();
-        if (bounds.expanded(16).contains(node))
-            bounds.setY(area.getY() + 12);
+        if (card.expanded(16).contains(node))
+            card.setY(area.getY() + 14);
     }
-    bandPanel.setBounds(bounds);
+    bandPanel.setBounds(card.expanded(ui::BandPanel::kShadow));
 }
 
 juce::String QuailEditor::statusKey() const
@@ -263,57 +285,66 @@ void QuailEditor::paint(juce::Graphics& g)
     animalaudio::ui::drawEditorBackground(g, getLocalBounds().toFloat(), palette);
 
     const auto top = topBar.toFloat();
-    g.setGradientFill(
-        juce::ColourGradient(palette.panel, 0.0f, top.getY(), palette.background, 0.0f, top.getBottom(), false));
-    g.fillRect(top);
-    g.setColour(palette.outline);
-    g.fillRect(top.withTop(top.getBottom() - 1.0f));
-    theme.motif->drawDecoration(g, top, palette);
+    const auto brandArea = brand.getBounds().toFloat();
+    animalaudio::ui::drawBuildStamp(
+        g, juce::Rectangle<float>(brandArea.getX() + 1.0f, brandArea.getBottom() + 4.0f, 170.0f, 11.0f), palette);
+    g.setColour(palette.text.withAlpha(0.07f));
+    g.fillRect(juce::Rectangle<float>(194.0f, top.getY() + 14.0f, 1.0f, top.getHeight() - 28.0f));
 
-    animalaudio::ui::drawBuildStamp(g, juce::Rectangle<float>(18.0f, top.getY() + 32.0f, 176.0f, 11.0f), palette);
-    theme.motif->drawMascot(g, juce::Rectangle<float>(198.0f, top.getY() + 4.0f, 40.0f, 40.0f), palette);
-    g.setColour(palette.accent);
-    g.setFont(makeFont(24.0f));
-    g.drawText(theme.name, juce::Rectangle<float>(244.0f, top.getY() + 5.0f, 110.0f, 24.0f),
+    theme.motif->drawMascot(g, juce::Rectangle<float>(208.0f, top.getY() + 10.0f, 34.0f, 34.0f), palette);
+    g.setColour(palette.text);
+    g.setFont(ui::titleFont(18.0f));
+    g.drawText(theme.name, juce::Rectangle<float>(250.0f, top.getY() + 11.0f, 120.0f, 20.0f),
                juce::Justification::centredLeft, false);
-    g.setColour(palette.textDim);
-    g.setFont(makeFont(10.0f));
     const int used = actions.numUsed();
-    g.drawText(theme.tagline + "  |  " + juce::String(used) + (used == 1 ? " BAND" : " BANDS"),
-               juce::Rectangle<float>(245.0f, top.getY() + 29.0f, 160.0f, 12.0f), juce::Justification::centredLeft,
+    g.setColour(palette.textDim);
+    g.setFont(ui::labelFont(9.0f));
+    g.drawText(theme.tagline + juce::String(juce::CharPointer_UTF8("  \xc2\xb7  ")) + juce::String(used) +
+                   (used == 1 ? " BAND" : " BANDS"),
+               juce::Rectangle<float>(251.0f, top.getY() + 31.0f, 170.0f, 12.0f), juce::Justification::centredLeft,
                false);
 
-    const auto resolutionBounds = resolution->getBounds().toFloat();
+    const auto track = resolutionTrack.toFloat();
+    ui::drawSegmentTrack(g, track, palette);
     const int latency = owner.getLatencySamples();
     const double sampleRate = owner.getDisplaySampleRate();
+    const auto caption = track.withX(track.getX() - 142.0f).withWidth(130.0f);
     g.setColour(palette.textDim);
-    g.setFont(makeFont(10.0f));
-    g.drawText("SPECTRAL", resolutionBounds.withX(resolutionBounds.getX() - 130.0f).withWidth(124.0f).withHeight(12.0f),
+    g.setFont(ui::labelFont(9.0f));
+    g.drawText("SPECTRAL RESOLUTION", caption.withHeight(track.getHeight() * 0.5f).translated(0.0f, 1.0f),
                juce::Justification::centredRight, false);
-    g.setColour(latency > 0 ? palette.detail : palette.textDim.withAlpha(0.7f));
-    g.drawText(latency > 0 ? "LATENCY " + juce::String(1000.0 * latency / sampleRate, 1) + " MS" : "ZERO LATENCY",
-               resolutionBounds.withX(resolutionBounds.getX() - 130.0f).withWidth(124.0f).withTrimmedTop(12.0f),
+    g.setColour(latency > 0 ? palette.text : palette.textDim.withAlpha(0.7f));
+    g.setFont(ui::valueFont(10.0f));
+    g.drawText(latency > 0 ? juce::String(1000.0 * latency / sampleRate, 1) + " MS LATENCY" : "ZERO LATENCY",
+               caption.withTrimmedTop(track.getHeight() * 0.5f).translated(0.0f, -1.0f),
                juce::Justification::centredRight, false);
 
-    const auto status =
-        juce::Rectangle<float>(static_cast<float>(resolution->getRight() + 18), top.getY() + 12.0f, 120.0f, 24.0f);
+    const auto status = sidechainStatus.toFloat().reduced(0.5f);
     const bool connected = owner.isSidechainActive();
     const bool signal = connected && meter.getLevelDb(2) > -70.0f;
-    g.setColour(palette.panelRaised);
-    g.fillRoundedRectangle(status, 12.0f);
-    g.setColour(signal ? palette.accentAlt : connected ? palette.accentAlt.withAlpha(0.45f) : palette.outline);
-    g.fillEllipse(juce::Rectangle<float>(8.0f, 8.0f).withCentre({status.getX() + 14.0f, status.getCentreY()}));
+    const auto sc = ui::sidechainColour();
+    g.setColour(signal ? sc.withAlpha(0.05f) : palette.text.withAlpha(0.025f));
+    g.fillRoundedRectangle(status, 7.0f);
+    g.setColour(signal ? sc.withAlpha(0.2f) : palette.text.withAlpha(0.08f));
+    g.drawRoundedRectangle(status.reduced(0.5f), 7.0f, 1.0f);
+    const auto light = juce::Rectangle<float>(6.0f, 6.0f).withCentre({status.getX() + 15.0f, status.getCentreY()});
+    if (signal)
+    {
+        g.setColour(sc.withAlpha(0.3f));
+        g.fillEllipse(light.expanded(2.5f));
+    }
+    g.setColour(signal ? sc : connected ? sc.withAlpha(0.5f) : palette.text.withAlpha(0.2f));
+    g.fillEllipse(light);
     g.setColour(connected ? palette.text : palette.textDim);
-    g.setFont(makeFont(10.5f));
-    g.drawText(connected ? "SIDE CHAIN" : "NO SIDE CHAIN", status.withTrimmedLeft(24.0f),
+    g.setFont(ui::valueFont(10.5f).withExtraKerningFactor(0.06f));
+    g.drawText(connected ? "SIDE CHAIN" : "NO SIDE CHAIN", status.withTrimmedLeft(27.0f),
                juce::Justification::centredLeft, false);
 
     const auto bottom = bottomBar.toFloat();
-    g.setColour(palette.outline);
-    g.fillRect(bottom.withHeight(1.0f));
+    ui::drawSegmentTrack(g, analyzerTrack.toFloat(), palette);
     g.setColour(palette.textDim);
-    g.setFont(makeFont(10.0f));
-    g.drawText("ANALYZER", juce::Rectangle<float>(16.0f, bottom.getY(), 70.0f, bottom.getHeight()),
+    g.setFont(ui::labelFont(9.0f));
+    g.drawText("ANALYZER", juce::Rectangle<float>(static_cast<float>(kEdge), bottom.getY(), 70.0f, bottom.getHeight()),
                juce::Justification::centredLeft, false);
 }
 
@@ -322,37 +353,41 @@ void QuailEditor::resized()
     auto bounds = getLocalBounds();
     topBar = bounds.removeFromTop(kTopBarHeight);
     bottomBar = bounds.removeFromBottom(kBottomBarHeight);
-    content = bounds.reduced(16, 6);
+    content = bounds.reduced(kEdge, 2);
 
-    brand.setBounds(16, topBar.getY() + 11, 146, 18);
-    bypass.setBounds(topBar.getRight() - 16 - 100, topBar.getY() + 11, 100, 26);
-    const int resolutionWidth = animalaudio::ui::ChoicePillRow::widthFor(3);
-    resolution->setBounds(bypass.getX() - 18 - 120 - 18 - resolutionWidth, topBar.getY() + 12, resolutionWidth, 24);
+    brand.setBounds(kEdge, topBar.getY() + 13, 146, 16);
+    const int controlY = topBar.getCentreY() - 14;
+    bypass.setBounds(topBar.getRight() - kEdge - 104, controlY, 104, 28);
+    sidechainStatus = juce::Rectangle<int>(bypass.getX() - 10 - 136, controlY, 136, 28);
+    resolutionTrack = juce::Rectangle<int>(sidechainStatus.getX() - 22 - 204, controlY, 204, 28);
+    resolution->setBounds(resolutionTrack.reduced(kTrackPadding));
 
     auto meterArea = content.removeFromRight(kMeterWidth);
-    content.removeFromRight(8);
-    meter.setBounds(meterArea);
+    content.removeFromRight(10);
+    meter.setBounds(meterArea.withTrimmedTop(4).withTrimmedBottom(4));
     display.setBounds(content);
 
-    auto row = bottomBar.reduced(16, 9);
-    row.removeFromLeft(70);
+    auto row = bottomBar.withSizeKeepingCentre(bottomBar.getWidth() - 2 * kEdge, 28);
+    row.removeFromLeft(72);
+    analyzerTrack = row.removeFromLeft(3 * 54 + 2 * kTrackPadding);
+    auto segments = analyzerTrack.reduced(kTrackPadding);
     for (int i = 0; i < 3; ++i)
     {
-        getAnalyzerButton(i).setBounds(row.removeFromLeft(i == 1 ? 52 : 44));
-        row.removeFromLeft(4);
+        getAnalyzerButton(i).setBounds(segments.removeFromLeft(i == 2 ? segments.getWidth() : 52));
+        segments.removeFromLeft(2);
     }
     row.removeFromLeft(10);
-    rangeButton.setBounds(row.removeFromLeft(72));
+    rangeButton.setBounds(row.removeFromLeft(74));
 
-    outputChip.setBounds(row.removeFromRight(124));
-    row.removeFromRight(6);
-    panChip.setBounds(row.removeFromRight(92));
-    row.removeFromRight(6);
-    scaleChip.setBounds(row.removeFromRight(110));
-    row.removeFromRight(10);
-    phase.setBounds(row.removeFromRight(66));
-    row.removeFromRight(6);
-    autoGain.setBounds(row.removeFromRight(96));
+    outputChip.setBounds(row.removeFromRight(128));
+    row.removeFromRight(8);
+    panChip.setBounds(row.removeFromRight(96));
+    row.removeFromRight(8);
+    scaleChip.setBounds(row.removeFromRight(112));
+    row.removeFromRight(18);
+    phase.setBounds(row.removeFromRight(84));
+    row.removeFromRight(8);
+    autoGain.setBounds(row.removeFromRight(110));
 
     placeBandPanel();
     saveUiState();

@@ -7,8 +7,6 @@ namespace quail::ui
 using animalaudio::dsp::shapeHasGain;
 using animalaudio::dsp::shapeHasQ;
 using animalaudio::dsp::shapeHasSlope;
-using animalaudio::ui::makeFont;
-using animalaudio::ui::PillButton;
 
 namespace
 {
@@ -19,8 +17,8 @@ void drawPowerGlyph(juce::Graphics& g, juce::Rectangle<float> area, juce::Colour
     juce::Path ring;
     ring.addCentredArc(c.x, c.y, r * 0.8f, r * 0.8f, 0.0f, 0.65f, juce::MathConstants<float>::twoPi - 0.65f, true);
     g.setColour(colour);
-    g.strokePath(ring, juce::PathStrokeType(r * 0.22f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    g.drawLine(c.x, c.y - r, c.x, c.y - r * 0.1f, r * 0.22f);
+    g.strokePath(ring, juce::PathStrokeType(r * 0.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.drawLine(c.x, c.y - r, c.x, c.y - r * 0.15f, r * 0.2f);
 }
 
 void drawArrowGlyph(juce::Graphics& g, juce::Rectangle<float> area, juce::Colour colour, bool right)
@@ -29,20 +27,27 @@ void drawArrowGlyph(juce::Graphics& g, juce::Rectangle<float> area, juce::Colour
     const float s = juce::jmin(area.getWidth(), area.getHeight()) * 0.5f;
     const auto c = area.getCentre();
     const float d = right ? 1.0f : -1.0f;
-    arrow.startNewSubPath(c.x - d * s * 0.45f, c.y - s * 0.8f);
-    arrow.lineTo(c.x + d * s * 0.45f, c.y);
-    arrow.lineTo(c.x - d * s * 0.45f, c.y + s * 0.8f);
+    arrow.startNewSubPath(c.x - d * s * 0.35f, c.y - s * 0.7f);
+    arrow.lineTo(c.x + d * s * 0.35f, c.y);
+    arrow.lineTo(c.x - d * s * 0.35f, c.y + s * 0.7f);
     g.setColour(colour);
-    g.strokePath(arrow, juce::PathStrokeType(s * 0.32f, juce::PathStrokeType::mitered, juce::PathStrokeType::rounded));
+    g.strokePath(arrow, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
-constexpr int kMargin = 12;
+constexpr float kCorner = 14.0f;
+constexpr int kMargin = 16;
 constexpr int kIdentityWidth = 180;
-constexpr int kFilterX = 204;
-constexpr int kFilterKnob = 66;
-constexpr int kDynamicsX = 416;
-constexpr int kDynamicsKnobsX = 612;
-constexpr int kDynamicsKnob = 54;
+constexpr int kHalfWidth = (kIdentityWidth - 6) / 2;
+constexpr int kFilterDivider = 210;
+constexpr int kFilterX = 224;
+constexpr int kFilterKnob = 64;
+constexpr int kDynamicsDivider = 430;
+constexpr int kDynamicsX = 444;
+constexpr int kToggleWidth = 90;
+constexpr int kDynamicsKnobsX = 644;
+constexpr int kDynamicsKnob = 50;
+constexpr int kRowHeight = 24;
+constexpr int kThresholdLabelY = 84;
 } // namespace
 
 BandPanel::BandPanel(BandActions& a, const animalaudio::ui::Theme& t)
@@ -73,6 +78,8 @@ BandPanel::BandPanel(BandActions& a, const animalaudio::ui::Theme& t)
     addToggle(BandParam::autoThreshold, "AUTO", "Auto threshold: follow the trigger's average level");
     toggles[BandParam::enabled]->glyph = [](juce::Graphics& g, juce::Rectangle<float> area, juce::Colour colour)
     { drawPowerGlyph(g, area, colour); };
+    for (auto param : {BandParam::dynamics, BandParam::sidechain, BandParam::spectral, BandParam::spectralTilt})
+        toggles[param]->setShowsLight(true);
 
     for (auto* menu : {&shapeMenu, &slopeMenu, &placementMenu})
         addAndMakeVisible(*menu);
@@ -112,7 +119,7 @@ BandPanel::BandPanel(BandActions& a, const animalaudio::ui::Theme& t)
     for (auto* button : {&previous, &next, &solo, &remove})
         addAndMakeVisible(*button);
 
-    setSize(kWidth, kHeight);
+    setSize(kWidth + 2 * kShadow, kHeight + 2 * kShadow);
     setBand(-1);
 }
 
@@ -137,7 +144,7 @@ void BandPanel::addKnob(BandParam param, const juce::String& label, const juce::
 
 void BandPanel::addToggle(BandParam param, const juce::String& text, const juce::String& tooltip)
 {
-    auto button = std::make_unique<PillButton>(text, colours);
+    auto button = std::make_unique<QuailToggle>(text, colours);
     button->setTooltip(tooltip);
     button->onClick = [this, param] { toggle(param); };
     addAndMakeVisible(*button);
@@ -193,6 +200,16 @@ void BandPanel::toggle(BandParam param)
     refresh();
 }
 
+void BandPanel::applyTint(juce::Colour colour)
+{
+    for (auto& [param, k] : knobs)
+        k.knob->setTint(colour);
+    for (auto& [param, toggleButton] : toggles)
+        toggleButton->setTint(colour);
+    solo.setTint(colour);
+    threshold.setTint(colour);
+}
+
 void BandPanel::setBand(int newBand)
 {
     if (band >= 0 && band != newBand && actions.getProcessor().getSoloBand() == band)
@@ -214,6 +231,7 @@ void BandPanel::setBand(int newBand)
         threshold.attachTo(nullptr, nullptr);
         return;
     }
+    applyTint(bandColour(band));
     shapeMenu.attachTo(&params.band(band, BandParam::shape));
     slopeMenu.attachTo(&params.band(band, BandParam::slope));
     placementMenu.attachTo(&params.band(band, BandParam::placement),
@@ -247,7 +265,7 @@ void BandPanel::refresh()
         if (c.isEnabled() == on)
             return;
         c.setEnabled(on);
-        // QuailKnob dims itself; pills, menus and the threshold bar have no disabled look of their own
+        // QuailKnob dims itself; buttons, menus and the threshold bar are dimmed as a whole
         if (dynamic_cast<QuailKnob*>(&c) == nullptr)
             c.setAlpha(on ? 1.0f : 0.35f);
     };
@@ -278,6 +296,7 @@ void BandPanel::refresh()
     lit(BandParam::spectral, b.spectral && dsp::supportsSpectral(b.shape));
     lit(BandParam::spectralTilt, b.spectralTilt);
     lit(BandParam::autoThreshold, b.autoThreshold);
+    toggles[BandParam::sidechain]->setTint(processor.isSidechainActive() ? bandColour(band) : warningColour());
 
     const float live = b.isSpectral() ? engine.getSpectral().getBandGainDb(band) : engine.getBandDynamicDb(band);
     knobs[BandParam::gain].knob->setDynamicRange(dynamicsOn, b.rangeDb, live);
@@ -293,108 +312,111 @@ void BandPanel::refresh()
 
 void BandPanel::resized()
 {
-    const auto row = [](int x, int y, int w) { return juce::Rectangle<int>(x, y, w, 24); };
-    toggles[BandParam::enabled]->setBounds(row(kMargin, 10, 24));
-    previous.setBounds(row(kMargin + kIdentityWidth - 50, 10, 24));
-    next.setBounds(row(kMargin + kIdentityWidth - 24, 10, 24));
-    shapeMenu.setBounds(row(kMargin, 40, kIdentityWidth));
-    slopeMenu.setBounds(row(kMargin, 70, 86));
-    placementMenu.setBounds(row(kMargin + 92, 70, kIdentityWidth - 92));
-    solo.setBounds(row(kMargin, 100, 100));
-    remove.setBounds(row(kMargin + 106, 100, kIdentityWidth - 106));
+    const auto o = getCardBounds().getPosition();
+    const auto row = [o](int x, int y, int w, int h = kRowHeight) { return juce::Rectangle<int>(x, y, w, h) + o; };
+    toggles[BandParam::enabled]->setBounds(row(kMargin, 14, 24));
+    previous.setBounds(row(kMargin + kIdentityWidth - 52, 14, 24));
+    next.setBounds(row(kMargin + kIdentityWidth - 24, 14, 24));
+    shapeMenu.setBounds(row(kMargin, 44, kIdentityWidth));
+    slopeMenu.setBounds(row(kMargin, 74, kHalfWidth));
+    placementMenu.setBounds(row(kMargin + kIdentityWidth - kHalfWidth, 74, kHalfWidth));
+    solo.setBounds(row(kMargin, 104, kHalfWidth));
+    remove.setBounds(row(kMargin + kIdentityWidth - kHalfWidth, 104, kHalfWidth));
 
     int x = kFilterX;
     for (auto param : {BandParam::frequency, BandParam::gain, BandParam::q})
     {
-        knobs[param].knob->setBounds(x + (kFilterKnob - 60) / 2, 10, 60, 60);
+        knobs[param].knob->setBounds(row(x + (kFilterKnob - 60) / 2, 22, 60, 60));
         x += kFilterKnob;
     }
 
-    toggles[BandParam::dynamics]->setBounds(row(kDynamicsX, 10, 92));
-    toggles[BandParam::sidechain]->setBounds(row(kDynamicsX + 98, 10, 92));
-    toggles[BandParam::spectral]->setBounds(row(kDynamicsX, 40, 92));
-    toggles[BandParam::spectralTilt]->setBounds(row(kDynamicsX + 98, 40, 92));
-    threshold.setBounds(kDynamicsX, 92, 136, 26);
-    toggles[BandParam::autoThreshold]->setBounds(row(kDynamicsX + 142, 93, 48));
+    toggles[BandParam::dynamics]->setBounds(row(kDynamicsX, 14, kToggleWidth));
+    toggles[BandParam::sidechain]->setBounds(row(kDynamicsX + kToggleWidth + 6, 14, kToggleWidth));
+    toggles[BandParam::spectral]->setBounds(row(kDynamicsX, 44, kToggleWidth));
+    toggles[BandParam::spectralTilt]->setBounds(row(kDynamicsX + kToggleWidth + 6, 44, kToggleWidth));
+    threshold.setBounds(row(kDynamicsX, 102, 2 * kToggleWidth + 6 - 54, 26));
+    toggles[BandParam::autoThreshold]->setBounds(row(kDynamicsX + 2 * kToggleWidth + 6 - 48, 103, 48));
 
     x = kDynamicsKnobsX;
     for (auto param : {BandParam::range, BandParam::attack, BandParam::release, BandParam::density})
     {
-        knobs[param].knob->setBounds(x + (kDynamicsKnob - 48) / 2, 12, 48, 48);
+        knobs[param].knob->setBounds(row(x + (kDynamicsKnob - 48) / 2, 26, 48, 48));
         x += kDynamicsKnob;
     }
+
+    shadow = juce::Image(juce::Image::ARGB, juce::jmax(1, getWidth()), juce::jmax(1, getHeight()), true);
+    juce::Graphics sg(shadow);
+    juce::Path card;
+    card.addRoundedRectangle(getCardBounds().toFloat(), kCorner);
+    juce::DropShadow(colours.background.withAlpha(0.8f), 16, {0, 5}).drawForPath(sg, card);
+}
+
+bool BandPanel::hitTest(int x, int y)
+{
+    return getCardBounds().contains(x, y);
 }
 
 void BandPanel::paint(juce::Graphics& g)
 {
-    const auto bounds = getLocalBounds().toFloat();
-    for (int i = 4; i > 0; --i)
-    {
-        g.setColour(colours.background.withAlpha(0.12f));
-        g.fillRoundedRectangle(bounds.reduced(static_cast<float>(4 - i)).translated(0.0f, static_cast<float>(i)),
-                               12.0f);
-    }
+    const auto card = getCardBounds().toFloat();
+    g.drawImageAt(shadow, 0, 0);
     g.setGradientFill(
-        juce::ColourGradient(colours.panelRaised, 0.0f, 0.0f, colours.panel, 0.0f, bounds.getBottom(), false));
-    g.fillRoundedRectangle(bounds.reduced(1.0f), 12.0f);
-    const auto colour = band >= 0 ? bandColour(band) : colours.accent;
-    g.setColour(colour.withAlpha(0.7f));
-    g.drawRoundedRectangle(bounds.reduced(1.5f), 12.0f, 1.2f);
-    g.setColour(colour);
-    g.fillRoundedRectangle(juce::Rectangle<float>(28.0f, 1.0f, 120.0f, 2.5f), 1.25f);
+        juce::ColourGradient(colours.panelRaised, 0.0f, card.getY(), colours.panel, 0.0f, card.getBottom(), false));
+    g.fillRoundedRectangle(card, kCorner);
+    g.setColour(colours.text.withAlpha(0.09f));
+    g.drawRoundedRectangle(card.reduced(0.5f), kCorner, 1.0f);
 
-    g.setColour(colours.outline);
-    for (int x : {kFilterX - 8, kDynamicsX - 8})
-        g.fillRect(juce::Rectangle<float>(static_cast<float>(x), 14.0f, 1.0f, bounds.getHeight() - 28.0f));
+    g.setColour(colours.text.withAlpha(0.06f));
+    for (int x : {kFilterDivider, kDynamicsDivider})
+        g.fillRect(juce::Rectangle<float>(card.getX() + static_cast<float>(x), card.getY() + 18.0f, 1.0f,
+                                          card.getHeight() - 36.0f));
 
     if (band < 0)
         return;
+    const auto colour = bandColour(band);
+    const auto origin = card.getPosition();
+    g.setColour(colour.withAlpha(0.3f));
+    g.fillEllipse(juce::Rectangle<float>(14.0f, 14.0f).withCentre(origin + juce::Point<float>(56.0f, 26.0f)));
     g.setColour(colour);
-    g.setFont(makeFont(15.0f));
-    g.drawText("BAND " + juce::String(band + 1), juce::Rectangle<float>(kMargin + 32.0f, 10.0f, 90.0f, 24.0f),
+    g.fillEllipse(juce::Rectangle<float>(8.0f, 8.0f).withCentre(origin + juce::Point<float>(56.0f, 26.0f)));
+    g.setColour(colours.text);
+    g.setFont(valueFont(13.5f).withExtraKerningFactor(0.06f));
+    g.drawText("BAND " + juce::String(band + 1),
+               juce::Rectangle<float>(origin.x + 68.0f, origin.y + 14.0f, 80.0f, 24.0f),
                juce::Justification::centredLeft, false);
 
-    const auto drawKnobText = [&](BandParam param)
+    for (auto& [param, k] : knobs)
     {
-        auto& k = knobs[param];
         const auto r = k.knob->getBounds().toFloat();
         const float alpha = k.knob->isEnabled() ? 1.0f : 0.35f;
         g.setColour(colours.textDim.withMultipliedAlpha(alpha));
-        g.setFont(makeFont(9.5f));
-        g.drawText(k.label, juce::Rectangle<float>(r.getCentreX() - 34.0f, r.getBottom() + 1.0f, 68.0f, 12.0f),
+        g.setFont(labelFont(9.0f));
+        g.drawText(k.label, juce::Rectangle<float>(r.getCentreX() - 34.0f, r.getBottom() + 2.0f, 68.0f, 12.0f),
                    juce::Justification::centred, false);
         g.setColour(colours.text.withMultipliedAlpha(alpha));
-        g.setFont(makeFont(11.5f));
+        g.setFont(valueFont(12.0f));
         g.drawText(actions.text(band, param),
-                   juce::Rectangle<float>(r.getCentreX() - 34.0f, r.getBottom() + 13.0f, 68.0f, 14.0f),
+                   juce::Rectangle<float>(r.getCentreX() - 34.0f, r.getBottom() + 15.0f, 68.0f, 15.0f),
                    juce::Justification::centred, false);
-    };
-    for (auto& [param, k] : knobs)
-        drawKnobText(param);
+    }
 
     g.setColour(colours.textDim.withMultipliedAlpha(threshold.isEnabled() ? 1.0f : 0.35f));
-    g.setFont(makeFont(9.5f));
-    g.drawText("THRESHOLD", juce::Rectangle<float>(kDynamicsX + 2.0f, 76.0f, 120.0f, 12.0f),
+    g.setFont(labelFont(9.0f));
+    g.drawText("THRESHOLD",
+               juce::Rectangle<float>(origin.x + kDynamicsX + 2.0f, origin.y + kThresholdLabelY, 120.0f, 12.0f),
                juce::Justification::centredLeft, false);
 }
 
 void BandPanel::paintOverChildren(juce::Graphics& g)
 {
-    if (band < 0)
+    if (band < 0 || !toggles[BandParam::sidechain]->getToggleState() || actions.getProcessor().isSidechainActive())
         return;
-    auto& sidechain = *toggles[BandParam::sidechain];
-    if (!sidechain.getToggleState())
-        return;
-    const bool connected = actions.getProcessor().isSidechainActive();
-    const auto r = sidechain.getBounds().toFloat();
-    g.setColour(connected ? colours.accent : dynamicColour(false));
-    g.fillEllipse(juce::Rectangle<float>(6.0f, 6.0f).withCentre({r.getRight() - 9.0f, r.getCentreY()}));
-    if (!connected)
-    {
-        g.setColour(dynamicColour(false));
-        g.setFont(makeFont(9.0f));
-        g.drawText("NO SIDE-CHAIN INPUT", juce::Rectangle<float>(kDynamicsX, 76.0f, 190.0f, 12.0f),
-                   juce::Justification::centredRight, false);
-    }
+    const auto origin = getCardBounds().toFloat().getPosition();
+    g.setColour(warningColour());
+    g.setFont(labelFont(8.5f));
+    g.drawText(
+        "NO SIDE-CHAIN INPUT",
+        juce::Rectangle<float>(origin.x + kDynamicsX, origin.y + kThresholdLabelY, 2.0f * kToggleWidth + 6.0f, 12.0f),
+        juce::Justification::centredRight, false);
 }
 } // namespace quail::ui

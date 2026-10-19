@@ -123,7 +123,7 @@ private:
     void drawNodes(juce::Graphics&, const dsp::Settings& settings);
     void drawReadout(juce::Graphics&, int band, const dsp::Settings& settings);
     void drawCursor(juce::Graphics&, juce::Rectangle<float> plot);
-    void drawFrame(juce::Graphics&, juce::Rectangle<float> plot, bool empty);
+    void drawHint(juce::Graphics&, juce::Rectangle<float> plot);
 
     void beginNodeDrag(int band, const juce::MouseEvent& e, bool forQ);
     void endDrag();

@@ -8,7 +8,6 @@
 
 #include <animalaudio/ui/BrandBadge.h>
 #include <animalaudio/ui/ChoicePillRow.h>
-#include <animalaudio/ui/PillButton.h>
 
 #include <memory>
 
@@ -79,16 +78,16 @@ private:
     ui::EqDisplay display;
     ui::BandPanel bandPanel;
     ui::OutputMeter meter;
-    animalaudio::ui::PillButton bypass;
-    animalaudio::ui::PillButton analyzerPre, analyzerPost, analyzerSidechain, rangeButton;
-    animalaudio::ui::PillButton autoGain, phase;
+    ui::QuailToggle bypass;
+    ui::QuailToggle analyzerPre, analyzerPost, analyzerSidechain, rangeButton;
+    ui::QuailToggle autoGain, phase;
     ui::ValueChip scaleChip, panChip, outputChip;
     std::unique_ptr<animalaudio::ui::ChoicePillRow> resolution;
 
     std::unique_ptr<juce::ButtonParameterAttachment> bypassAttachment, autoGainAttachment, phaseAttachment;
     std::unique_ptr<juce::SliderParameterAttachment> scaleAttachment, panAttachment, outputAttachment;
 
-    juce::Rectangle<int> topBar, bottomBar, content;
+    juce::Rectangle<int> topBar, bottomBar, content, resolutionTrack, analyzerTrack, sidechainStatus;
     juce::String lastStatus;
     bool restoringSize = false;
 

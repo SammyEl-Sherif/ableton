@@ -84,7 +84,7 @@ Open this table and decide, for every piece the concept needs, whether it alread
 | curve-shaper editor (optional) | `ui/ShaperEditor.h` + `ui/Theme.h` — use when the UX matches Duck; otherwise a custom editor |
 | branding + look | `BrandBadge`, `Theme` (`Palette` + `Motif`), `makePaletteFromHue`, `makeFont` |
 | editor backdrop, left-panel backdrop, title block (NAME + tagline + mascot), build stamp | `ui/ThemedPanel.h` (used by `ShaperEditor`; Quail uses the backdrop and build stamp) |
-| widgets (mix and match) | `PillButton`, `ChoicePillRow`, `RotaryKnob` (`setArcOrigin` for bipolar)/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
+| widgets (mix and match) | `PillButton`, `ChoicePillRow` (pill factory + `setGap` to restyle its pills), `RotaryKnob` (`setArcOrigin`/`getArcOrigin` for bipolar)/`ThemedKnob`, `CurveEditor`, `CurvePresetPanel`, `Drawing.h` |
 | test suites | `shared/testing`: `AA_SHAPER_PLUGIN_TESTS`, `AA_GAIN_SHAPER_PLUGIN_TESTS`, `AA_REAL_MOUSE_PLUGIN_TESTS`; for a custom editor: `suite::buildStampIsShown<P, E>()`, `TestKit.h` (`click`, `writePngIfRequested`), `realmouse::DesktopEditor<E>` |
 | VST3 category other than plain `Fx` (e.g. an EQ) | `aa_add_plugin(... VST3_CATEGORIES Fx EQ ...)` |
 
@@ -180,8 +180,9 @@ in two plugins; shared code mentioning a plugin or an animal by name.
 ## 7. Tests
 
 - While the plugin still uses `GainShaperProcessor` + `ShaperEditor`, keep `AA_SHAPER_PLUGIN_TESTS`,
-  `AA_REAL_MOUSE_PLUGIN_TESTS`, and `AA_GAIN_SHAPER_PLUGIN_TESTS` in `tests/<Name>Tests.cpp` (real mouse suite:
-  run ctest under `xvfb-run -a` on Linux). After a custom processor/UI, replace or supplement with plugin-specific
+  `AA_REAL_MOUSE_PLUGIN_TESTS`, and `AA_GAIN_SHAPER_PLUGIN_TESTS` in `tests/<Name>Tests.cpp` (real mouse suite: it
+  moves the OS pointer and skips unless `AA_REAL_MOUSE_TESTS=1`; CI sets it, never set it on the user's machine
+  unless they ask). After a custom processor/UI, replace or supplement with plugin-specific
   tests (parameters, state round-trip, headless `createComponentSnapshot` of your editor).
 - Add tests for everything plugin-specific: your DSP (JUCE-free where possible), extra parameters and
   their state round-trip, anything you changed in the shared libs (tests belong next to the shared code).

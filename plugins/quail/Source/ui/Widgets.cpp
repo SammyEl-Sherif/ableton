@@ -4,8 +4,37 @@
 
 namespace quail::ui
 {
-using animalaudio::ui::makeFont;
 using animalaudio::ui::Palette;
+
+namespace
+{
+constexpr float kChipRadius = 7.0f;
+
+juce::Font buttonFont(float height)
+{
+    return valueFont(height).withExtraKerningFactor(0.06f);
+}
+
+void drawChevron(juce::Graphics& g, juce::Rectangle<float> area, juce::Colour colour)
+{
+    const auto c = area.getCentre();
+    const float s = juce::jmin(area.getWidth(), area.getHeight()) * 0.5f;
+    juce::Path p;
+    p.startNewSubPath(c.x - s, c.y - s * 0.45f);
+    p.lineTo(c.x, c.y + s * 0.45f);
+    p.lineTo(c.x + s, c.y - s * 0.45f);
+    g.setColour(colour);
+    g.strokePath(p, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+}
+
+void drawChip(juce::Graphics& g, juce::Rectangle<float> bounds, const Palette& palette, bool hot, bool down)
+{
+    g.setColour(palette.text.withAlpha(down ? 0.1f : hot ? 0.075f : 0.04f));
+    g.fillRoundedRectangle(bounds, kChipRadius);
+    g.setColour(palette.text.withAlpha(hot ? 0.16f : 0.09f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), kChipRadius, 1.0f);
+}
+} // namespace
 
 QuailLookAndFeel::QuailLookAndFeel(const Palette& palette)
     : colours(palette)
@@ -13,7 +42,7 @@ QuailLookAndFeel::QuailLookAndFeel(const Palette& palette)
     setColour(juce::PopupMenu::backgroundColourId, palette.panelRaised);
     setColour(juce::PopupMenu::textColourId, palette.text);
     setColour(juce::PopupMenu::headerTextColourId, palette.textDim);
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, palette.accent.withAlpha(0.22f));
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, palette.accent.withAlpha(0.16f));
     setColour(juce::PopupMenu::highlightedTextColourId, palette.text);
     setColour(juce::TooltipWindow::backgroundColourId, palette.panelRaised);
     setColour(juce::TooltipWindow::textColourId, palette.text);
@@ -22,7 +51,7 @@ QuailLookAndFeel::QuailLookAndFeel(const Palette& palette)
 
 juce::Font QuailLookAndFeel::getPopupMenuFont()
 {
-    return makeFont(14.0f, false);
+    return juce::Font(juce::FontOptions(13.5f));
 }
 
 void QuailLookAndFeel::drawPopupMenuBackground(juce::Graphics& g, int width, int height)
@@ -30,7 +59,7 @@ void QuailLookAndFeel::drawPopupMenuBackground(juce::Graphics& g, int width, int
     const auto bounds = juce::Rectangle<int>(width, height).toFloat();
     g.setColour(colours.panelRaised);
     g.fillRect(bounds);
-    g.setColour(colours.outline);
+    g.setColour(colours.text.withAlpha(0.1f));
     g.drawRect(bounds, 1.0f);
 }
 
@@ -38,24 +67,123 @@ void QuailLookAndFeel::drawTooltip(juce::Graphics& g, const juce::String& text, 
 {
     const auto bounds = juce::Rectangle<int>(width, height).toFloat();
     g.setColour(colours.panelRaised);
-    g.fillRoundedRectangle(bounds, 5.0f);
-    g.setColour(colours.outline);
-    g.drawRoundedRectangle(bounds.reduced(0.5f), 5.0f, 1.0f);
+    g.fillRoundedRectangle(bounds, 6.0f);
+    g.setColour(colours.text.withAlpha(0.1f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), 6.0f, 1.0f);
     g.setColour(colours.text);
-    g.setFont(makeFont(12.5f, false));
-    g.drawFittedText(text, bounds.reduced(8.0f, 4.0f).toNearestInt(), juce::Justification::centredLeft, 4);
+    g.setFont(juce::Font(juce::FontOptions(12.5f)));
+    g.drawFittedText(text, bounds.reduced(9.0f, 4.0f).toNearestInt(), juce::Justification::centredLeft, 4);
 }
 
 juce::Rectangle<int> QuailLookAndFeel::getTooltipBounds(const juce::String& text, juce::Point<int> screenPos,
                                                         juce::Rectangle<int> parentArea)
 {
-    const float textWidth = juce::GlyphArrangement::getStringWidth(makeFont(12.5f, false), text);
-    const int w = juce::jmin(360, juce::roundToInt(textWidth) + 18);
-    const int lines = juce::jmax(1, juce::roundToInt(std::ceil(textWidth / 342.0f)));
-    const int h = 8 + lines * 16;
+    const float textWidth = juce::GlyphArrangement::getStringWidth(juce::Font(juce::FontOptions(12.5f)), text);
+    const int w = juce::jmin(360, juce::roundToInt(textWidth) + 20);
+    const int lines = juce::jmax(1, juce::roundToInt(std::ceil(textWidth / 340.0f)));
+    const int h = 10 + lines * 16;
     return juce::Rectangle<int>(screenPos.x > parentArea.getCentreX() ? screenPos.x - (w + 12) : screenPos.x + 24,
                                 screenPos.y > parentArea.getCentreY() ? screenPos.y - (h + 6) : screenPos.y + 6, w, h)
         .constrainedWithin(parentArea);
+}
+
+void drawSegmentTrack(juce::Graphics& g, juce::Rectangle<float> area, const Palette& palette)
+{
+    g.setColour(palette.text.withAlpha(0.035f));
+    g.fillRoundedRectangle(area, kChipRadius + 2.0f);
+    g.setColour(palette.text.withAlpha(0.08f));
+    g.drawRoundedRectangle(area.reduced(0.5f), kChipRadius + 2.0f, 1.0f);
+}
+
+QuailToggle::QuailToggle(const juce::String& text, const Palette& palette, Style s)
+    : PillButton(text, palette)
+    , colours(palette)
+    , style(s)
+    , tint(palette.accent)
+{
+}
+
+void QuailToggle::setTint(juce::Colour colour)
+{
+    if (colour == tint)
+        return;
+    tint = colour;
+    repaint();
+}
+
+void QuailToggle::setShowsLight(bool shown)
+{
+    light = shown;
+    repaint();
+}
+
+void QuailToggle::paintButton(juce::Graphics& g, bool isMouseOver, bool isButtonDown)
+{
+    const auto bounds = getLocalBounds().toFloat().reduced(0.5f);
+    const bool on = getToggleState();
+    const bool hot = isMouseOver && isEnabled();
+    const float radius = juce::jmin(kChipRadius, bounds.getHeight() * 0.35f);
+    const auto& ink = colours.text;
+
+    if (style == Style::chip)
+    {
+        g.setColour(on ? tint.withAlpha(isButtonDown ? 0.18f : 0.11f)
+                       : ink.withAlpha(isButtonDown ? 0.1f
+                                       : hot        ? 0.075f
+                                                    : 0.04f));
+        g.fillRoundedRectangle(bounds, radius);
+        g.setColour(on ? tint.withAlpha(0.32f) : ink.withAlpha(hot ? 0.16f : 0.09f));
+        g.drawRoundedRectangle(bounds.reduced(0.5f), radius, 1.0f);
+    }
+    else if (on || hot)
+    {
+        g.setColour(on ? tint.withAlpha(isButtonDown ? 0.22f : 0.15f) : ink.withAlpha(0.05f));
+        g.fillRoundedRectangle(bounds, radius);
+        if (on)
+        {
+            g.setColour(tint.withAlpha(0.3f));
+            g.drawRoundedRectangle(bounds.reduced(0.5f), radius, 1.0f);
+        }
+    }
+
+    const auto textColour = on || hot ? ink : colours.textDim;
+    const auto glyphColour = on ? tint : textColour;
+    const auto text = getButtonText();
+    const auto font = buttonFont(juce::jmin(11.0f, bounds.getHeight() * 0.44f));
+    const float glyphSize = bounds.getHeight() * 0.42f;
+    if (glyph && text.isEmpty())
+    {
+        glyph(g, juce::Rectangle<float>(glyphSize, glyphSize).withCentre(bounds.getCentre()), glyphColour);
+        return;
+    }
+
+    constexpr float lightSize = 6.0f;
+    constexpr float spacing = 7.0f;
+    const float textWidth = juce::GlyphArrangement::getStringWidth(font, text);
+    const float lead = (light ? lightSize + spacing : 0.0f) + (glyph ? glyphSize + spacing : 0.0f);
+    float x = bounds.getCentreX() - (lead + textWidth) * 0.5f;
+    const float y = bounds.getCentreY();
+    if (light)
+    {
+        const auto dot = juce::Rectangle<float>(lightSize, lightSize).withCentre({x + lightSize * 0.5f, y});
+        if (on)
+        {
+            g.setColour(tint.withAlpha(0.28f));
+            g.fillEllipse(dot.expanded(2.5f));
+        }
+        g.setColour(on ? tint : ink.withAlpha(0.2f));
+        g.fillEllipse(dot);
+        x += lightSize + spacing;
+    }
+    if (glyph)
+    {
+        glyph(g, juce::Rectangle<float>(glyphSize, glyphSize).withCentre({x + glyphSize * 0.5f, y}), glyphColour);
+        x += glyphSize + spacing;
+    }
+    g.setColour(textColour);
+    g.setFont(font);
+    g.drawText(text, juce::Rectangle<float>(x, bounds.getY(), textWidth + 4.0f, bounds.getHeight()),
+               juce::Justification::centredLeft, false);
 }
 
 MenuPill::MenuPill(const Palette& palette, const juce::String& tooltip)
@@ -108,32 +236,18 @@ void MenuPill::clicked()
 
 void MenuPill::paintButton(juce::Graphics& g, bool isMouseOver, bool isButtonDown)
 {
-    auto bounds = getLocalBounds().toFloat().reduced(1.0f);
-    const float alpha = isEnabled() ? 1.0f : 0.35f;
-    auto fill = colours.panelRaised;
-    if (isMouseOver && isEnabled())
-        fill = fill.brighter(0.1f);
-    if (isButtonDown)
-        fill = fill.darker(0.1f);
-    g.setColour(fill.withMultipliedAlpha(alpha));
-    g.fillRoundedRectangle(bounds, 6.0f);
-    g.setColour(colours.outline.withMultipliedAlpha(alpha));
-    g.drawRoundedRectangle(bounds.reduced(0.5f), 6.0f, 1.0f);
+    auto bounds = getLocalBounds().toFloat().reduced(0.5f);
+    drawChip(g, bounds, colours, isMouseOver && isEnabled(), isButtonDown);
 
     juce::String text;
     if (auto* choice = dynamic_cast<juce::AudioParameterChoice*>(parameter))
         text = choice->choices[juce::jlimit(0, choice->choices.size() - 1, index)];
 
-    auto caretArea = bounds.removeFromRight(bounds.getHeight()).reduced(bounds.getHeight() * 0.36f);
-    juce::Path caret;
-    caret.addTriangle(caretArea.getX(), caretArea.getY(), caretArea.getRight(), caretArea.getY(),
-                      caretArea.getCentreX(), caretArea.getBottom());
-    g.setColour(colours.accent.withMultipliedAlpha(alpha));
-    g.fillPath(caret);
-
-    g.setColour(colours.text.withMultipliedAlpha(alpha));
-    g.setFont(makeFont(juce::jmin(13.0f, bounds.getHeight() * 0.55f)));
-    g.drawFittedText(text.toUpperCase(), bounds.withTrimmedLeft(9.0f).toNearestInt(), juce::Justification::centredLeft,
+    const float h = bounds.getHeight();
+    drawChevron(g, bounds.removeFromRight(h).reduced(h * 0.37f).translated(-2.0f, 0.0f), colours.textDim);
+    g.setColour(colours.text);
+    g.setFont(buttonFont(juce::jmin(11.0f, h * 0.45f)));
+    g.drawFittedText(text.toUpperCase(), bounds.withTrimmedLeft(10.0f).toNearestInt(), juce::Justification::centredLeft,
                      1, 0.8f);
 }
 
@@ -150,25 +264,32 @@ ValueChip::ValueChip(const juce::String& labelText, const Palette& palette)
 
 void ValueChip::paint(juce::Graphics& g)
 {
-    auto bounds = getLocalBounds().toFloat().reduced(1.0f);
-    g.setColour(isMouseOverOrDragging() ? colours.panelRaised.brighter(0.08f) : colours.panelRaised);
-    g.fillRoundedRectangle(bounds, 6.0f);
-    g.setColour(colours.outline);
-    g.drawRoundedRectangle(bounds.reduced(0.5f), 6.0f, 1.0f);
+    const auto bounds = getLocalBounds().toFloat().reduced(0.5f);
+    drawChip(g, bounds, colours, isMouseOverOrDragging(), false);
 
-    auto inner = bounds.reduced(9.0f, 0.0f);
+    const auto inner = bounds.reduced(10.0f, 0.0f);
     g.setColour(colours.textDim);
-    g.setFont(makeFont(10.0f));
+    g.setFont(labelFont(9.5f));
     g.drawText(label, inner, juce::Justification::centredLeft, false);
     g.setColour(colours.text);
-    g.setFont(makeFont(13.0f));
+    g.setFont(valueFont(12.0f));
     const auto text = valueText ? valueText(getValue()) : getTextFromValue(getValue());
     g.drawText(text, inner, juce::Justification::centredRight, false);
 }
 
-QuailKnob::QuailKnob(const animalaudio::ui::Theme& theme)
-    : ThemedKnob(theme)
+QuailKnob::QuailKnob(const animalaudio::ui::Theme& t)
+    : RotaryKnob(t.palette)
+    , theme(t)
+    , tint(t.palette.accent)
 {
+}
+
+void QuailKnob::setTint(juce::Colour colour)
+{
+    if (colour == tint)
+        return;
+    tint = colour;
+    repaint();
 }
 
 void QuailKnob::setDynamicRange(bool shown, double rangeDb, double liveDb)
@@ -181,44 +302,66 @@ void QuailKnob::setDynamicRange(bool shown, double rangeDb, double liveDb)
     repaint();
 }
 
+float QuailKnob::angleFor(double value)
+{
+    const double clamped = juce::jlimit(getMinimum(), getMaximum(), value);
+    return kStartAngle + static_cast<float>(valueToProportionOfLength(clamped)) * (kEndAngle - kStartAngle);
+}
+
 void QuailKnob::paint(juce::Graphics& g)
 {
     const float alpha = isEnabled() ? 1.0f : 0.35f;
     if (alpha < 1.0f)
         g.beginTransparencyLayer(alpha);
-    RotaryKnob::paint(g);
-    if (alpha < 1.0f)
-        g.endTransparencyLayer();
-    if (!rangeShown || range == 0.0)
-        return;
 
-    auto bounds = getLocalBounds().toFloat().reduced(4.0f);
+    const auto bounds = getLocalBounds().toFloat().reduced(2.0f);
     const float outer = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.5f;
     const auto centre = bounds.getCentre();
-    const float thickness = outer * 0.1f;
-    const float radius = outer - thickness * 1.8f;
-    const auto angleOf = [&](double value)
+    const float thickness = juce::jmax(2.0f, outer * 0.065f);
+    const float arcRadius = outer - thickness * 1.5f;
+    const auto stroke = [](float width)
+    { return juce::PathStrokeType(width, juce::PathStrokeType::curved, juce::PathStrokeType::rounded); };
+    const auto arc = [&](float radius, float from, float to)
     {
-        const double clamped = juce::jlimit(getMinimum(), getMaximum(), value);
-        return kStartAngle + static_cast<float>(valueToProportionOfLength(clamped)) * (kEndAngle - kStartAngle);
+        juce::Path p;
+        p.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, juce::jmin(from, to), juce::jmax(from, to), true);
+        return p;
     };
-    const float from = angleOf(getValue());
-    const float to = angleOf(getValue() + range);
-    juce::Path arc;
-    arc.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, juce::jmin(from, to), juce::jmax(from, to), true);
-    const auto colour = dynamicColour(range > 0.0);
-    g.setColour(colour.withAlpha(0.85f));
-    g.strokePath(arc,
-                 juce::PathStrokeType(thickness * 0.7f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    const float liveAngle = angleOf(getValue() + live);
-    const juce::Point<float> dot(centre.x + radius * std::sin(liveAngle), centre.y - radius * std::cos(liveAngle));
-    g.setColour(colours.text);
-    g.fillEllipse(juce::Rectangle<float>(thickness * 1.3f, thickness * 1.3f).withCentre(dot));
+    g.setColour(colours.text.withAlpha(0.08f));
+    g.strokePath(arc(arcRadius, kStartAngle, kEndAngle), stroke(thickness));
+
+    const float angle = angleFor(getValue());
+    const float origin = angleFor(getArcOrigin().value_or(getMinimum()));
+    if (std::abs(angle - origin) > 0.01f)
+    {
+        const auto value = arc(arcRadius, origin, angle);
+        g.setColour(tint.withAlpha(0.1f));
+        g.strokePath(value, stroke(thickness * 2.6f));
+        g.setColour(tint);
+        g.strokePath(value, stroke(thickness));
+    }
+
+    if (rangeShown && !juce::exactlyEqual(range, 0.0))
+    {
+        const float inner = arcRadius - thickness * 2.0f;
+        g.setColour(tint.withAlpha(0.55f));
+        g.strokePath(arc(inner, angle, angleFor(getValue() + range)), stroke(thickness * 0.8f));
+        const float liveAngle = angleFor(getValue() + live);
+        const juce::Point<float> dot(centre.x + inner * std::sin(liveAngle), centre.y - inner * std::cos(liveAngle));
+        g.setColour(colours.text);
+        g.fillEllipse(juce::Rectangle<float>(thickness * 1.7f, thickness * 1.7f).withCentre(dot));
+    }
+
+    theme.motif->drawKnobCap(g, centre, arcRadius - thickness * 3.4f, angle - juce::MathConstants<float>::twoPi,
+                             colours);
+    if (alpha < 1.0f)
+        g.endTransparencyLayer();
 }
 
 ThresholdBar::ThresholdBar(const Palette& palette)
     : colours(palette)
+    , tint(palette.accent)
 {
     setMouseCursor(juce::MouseCursor::LeftRightResizeCursor);
     setTooltip("Threshold over the trigger level. Drag to set it, double-click for auto threshold.");
@@ -228,6 +371,14 @@ void ThresholdBar::attachTo(juce::RangedAudioParameter* thresholdParam, juce::Ra
 {
     threshold = thresholdParam;
     autoThreshold = autoParam;
+    repaint();
+}
+
+void ThresholdBar::setTint(juce::Colour colour)
+{
+    if (colour == tint)
+        return;
+    tint = colour;
     repaint();
 }
 
@@ -243,7 +394,7 @@ void ThresholdBar::setLevels(float triggerDb, float effectiveThresholdDb, bool a
 
 juce::Rectangle<float> ThresholdBar::track() const noexcept
 {
-    return getLocalBounds().toFloat().reduced(1.0f);
+    return getLocalBounds().toFloat().reduced(0.5f);
 }
 
 float ThresholdBar::xForDb(float db) const noexcept
@@ -266,36 +417,40 @@ bool ThresholdBar::isAuto() const noexcept
 void ThresholdBar::paint(juce::Graphics& g)
 {
     const auto t = track();
-    const float alpha = isEnabled() ? 1.0f : 0.35f;
-    g.setColour(colours.background.withMultipliedAlpha(alpha));
-    g.fillRoundedRectangle(t, 5.0f);
+    const float radius = juce::jmin(kChipRadius, t.getHeight() * 0.35f);
+    g.setColour(colours.background.withAlpha(0.85f));
+    g.fillRoundedRectangle(t, radius);
 
     const float manual = threshold != nullptr ? threshold->convertFrom0to1(threshold->getValue()) : -30.0f;
     const float shown = isAuto() && live ? effective : manual;
     const float thresholdX = xForDb(shown);
     if (live && isEnabled())
     {
-        const float levelX = xForDb(trigger);
-        g.setGradientFill(juce::ColourGradient(colours.accent.withAlpha(0.15f), t.getX(), 0.0f,
-                                               colours.accent.withAlpha(0.55f), t.getRight(), 0.0f, false));
-        g.fillRoundedRectangle(t.withRight(juce::jmax(t.getX() + 2.0f, levelX)), 5.0f);
+        const auto inner = t.reduced(2.0f);
+        const float levelX = juce::jlimit(inner.getX(), inner.getRight(), xForDb(trigger));
+        g.setGradientFill(juce::ColourGradient(tint.withAlpha(0.03f), inner.getX(), 0.0f, tint.withAlpha(0.2f),
+                                               inner.getRight(), 0.0f, false));
+        g.fillRoundedRectangle(inner.withRight(juce::jmax(inner.getX() + 1.0f, levelX)), radius - 2.0f);
         if (levelX > thresholdX)
         {
-            g.setColour(colours.accentAlt.withAlpha(0.75f));
-            g.fillRect(juce::Rectangle<float>(thresholdX, t.getY() + 2.0f, levelX - thresholdX, t.getHeight() - 4.0f));
+            g.setColour(tint.withAlpha(0.42f));
+            g.fillRoundedRectangle(inner.withLeft(thresholdX).withRight(levelX), 2.0f);
         }
     }
-    g.setColour(colours.outline.withMultipliedAlpha(alpha));
-    g.drawRoundedRectangle(t.reduced(0.5f), 5.0f, 1.0f);
+    g.setColour(colours.text.withAlpha(0.09f));
+    g.drawRoundedRectangle(t.reduced(0.5f), radius, 1.0f);
 
-    g.setColour(colours.detail.withMultipliedAlpha(alpha));
-    g.fillRect(juce::Rectangle<float>(thresholdX - 1.0f, t.getY() + 1.0f, 2.0f, t.getHeight() - 2.0f));
+    g.setColour(colours.text);
+    g.fillRoundedRectangle(juce::Rectangle<float>(thresholdX - 1.0f, t.getY() + 3.0f, 2.0f, t.getHeight() - 6.0f),
+                           1.0f);
 
-    g.setFont(makeFont(10.5f));
-    g.setColour(colours.text.withMultipliedAlpha(alpha));
+    g.setFont(valueFont(10.5f));
+    g.setColour(colours.text.withAlpha(0.9f));
     const juce::String text =
         isAuto() ? "AUTO " + (live ? juce::String(shown, 1) : juce::String()) : juce::String(manual, 1) + " dB";
-    g.drawText(text.trim(), t.reduced(7.0f, 0.0f), juce::Justification::centredRight, false);
+    const bool markerOnRight = thresholdX > t.getCentreX();
+    g.drawText(text.trim(), t.reduced(9.0f, 0.0f),
+               markerOnRight ? juce::Justification::centredLeft : juce::Justification::centredRight, false);
 }
 
 void ThresholdBar::mouseDown(const juce::MouseEvent& e)
@@ -380,51 +535,50 @@ void OutputMeter::mouseDown(const juce::MouseEvent&)
 void OutputMeter::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
-    auto light = bounds.removeFromTop(8.0f).reduced(2.0f, 1.0f);
-    g.setColour(clipped ? collisionColour() : colours.panelRaised);
-    g.fillRoundedRectangle(light, 2.0f);
-    bounds.removeFromTop(4.0f);
+    const int count = sidechainShown ? 3 : 2;
+    constexpr float gap = 3.0f;
+    const float barWidth =
+        juce::jmin(7.0f, (bounds.getWidth() - gap * static_cast<float>(count - 1)) / static_cast<float>(count));
+    const float total = barWidth * static_cast<float>(count) + gap * static_cast<float>(count - 1);
+    const float left = bounds.getCentreX() - total * 0.5f;
 
-    const auto bars = bounds;
-    const float gap = 2.0f;
-    const float scWidth = sidechainShown ? bars.getWidth() * 0.22f : 0.0f;
-    const float channelWidth = (bars.getWidth() - scWidth - gap * (sidechainShown ? 2.0f : 1.0f)) * 0.5f;
+    const auto light = bounds.removeFromTop(5.0f).withX(left).withWidth(total);
+    g.setColour(clipped ? collisionColour() : colours.text.withAlpha(0.07f));
+    g.fillRoundedRectangle(light, 2.5f);
+    bounds.removeFromTop(7.0f);
 
-    const auto drawBar = [&](juce::Rectangle<float> bar, float levelDb, float holdDb, juce::Colour colour)
+    const auto drawBar = [&](int index, juce::Colour colour)
     {
-        g.setColour(colours.background);
+        const auto bar = juce::Rectangle<float>(left + static_cast<float>(index) * (barWidth + gap), bounds.getY(),
+                                                barWidth, bounds.getHeight());
+        const auto i = static_cast<std::size_t>(index);
+        g.setColour(colours.text.withAlpha(0.045f));
         g.fillRoundedRectangle(bar, 2.0f);
-        const float top = yForDb(levelDb, bar);
-        if (top < bar.getBottom())
+        const float top = yForDb(levels[i], bar);
+        if (top < bar.getBottom() - 0.5f)
         {
-            g.setGradientFill(
-                juce::ColourGradient(colour.withAlpha(0.5f), 0.0f, bar.getBottom(), colour, 0.0f, bar.getY(), false));
+            g.setGradientFill(juce::ColourGradient(colour.withAlpha(0.3f), 0.0f, bar.getBottom(), colour, 0.0f,
+                                                   yForDb(0.0f, bar), false));
             g.fillRoundedRectangle(bar.withTop(top), 2.0f);
-            if (levelDb > 0.0f)
+            if (levels[i] > 0.0f)
             {
                 g.setColour(collisionColour());
                 g.fillRect(bar.withTop(top).withBottom(yForDb(0.0f, bar)));
             }
         }
-        if (holdDb > kMinDb)
+        if (holds[i] > kMinDb + 0.5f)
         {
-            g.setColour(colours.text.withAlpha(0.8f));
-            g.fillRect(bar.withTop(yForDb(holdDb, bar) - 1.0f).withHeight(1.5f));
+            g.setColour(colours.text.withAlpha(0.85f));
+            g.fillRect(bar.withTop(yForDb(holds[i], bar) - 1.0f).withHeight(1.5f));
         }
     };
-
-    auto row = bars;
-    drawBar(row.removeFromLeft(channelWidth), levels[0], holds[0], colours.accent);
-    row.removeFromLeft(gap);
-    drawBar(row.removeFromLeft(channelWidth), levels[1], holds[1], colours.accent);
+    drawBar(0, colours.accent);
+    drawBar(1, colours.accent);
     if (sidechainShown)
-    {
-        row.removeFromLeft(gap);
-        drawBar(row, levels[2], holds[2], colours.accentAlt);
-    }
+        drawBar(2, sidechainColour());
 
-    g.setColour(colours.textDim.withAlpha(0.5f));
+    g.setColour(colours.background.withAlpha(0.6f));
     for (float db : {0.0f, -12.0f, -24.0f, -48.0f})
-        g.fillRect(juce::Rectangle<float>(bars.getX(), yForDb(db, bars), bars.getWidth(), 1.0f));
+        g.fillRect(juce::Rectangle<float>(left, yForDb(db, bounds), total, 1.0f));
 }
 } // namespace quail::ui
