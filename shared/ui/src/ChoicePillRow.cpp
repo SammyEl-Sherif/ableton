@@ -2,12 +2,13 @@
 
 namespace animalaudio::ui
 {
-ChoicePillRow::ChoicePillRow(juce::AudioParameterChoice& parameter, const Palette& palette, const juce::String& tooltip)
+ChoicePillRow::ChoicePillRow(juce::AudioParameterChoice& parameter, const Palette& palette, const juce::String& tooltip,
+                             const PillFactory& makePill)
     : choice(parameter)
 {
     for (int i = 0; i < choice.choices.size(); ++i)
     {
-        auto pill = std::make_unique<PillButton>(choice.choices[i], palette);
+        auto pill = makePill ? makePill(choice.choices[i]) : std::make_unique<PillButton>(choice.choices[i], palette);
         pill->setTooltip(tooltip);
         pill->onClick = [this, i]
         {
@@ -29,13 +30,23 @@ void ChoicePillRow::show(int index)
         pills[static_cast<std::size_t>(i)]->setToggleState(i == index, juce::dontSendNotification);
 }
 
+void ChoicePillRow::setGap(int pixels)
+{
+    gap = pixels;
+    resized();
+}
+
 void ChoicePillRow::resized()
 {
-    auto row = getLocalBounds();
-    for (auto& pill : pills)
+    const int n = getNumPills();
+    if (n == 0)
+        return;
+    const double pitch = static_cast<double>(getWidth() + gap) / n;
+    for (int i = 0; i < n; ++i)
     {
-        pill->setBounds(row.removeFromLeft(kPillWidth));
-        row.removeFromLeft(kGap);
+        const int x = juce::roundToInt(pitch * i);
+        const int right = juce::roundToInt(pitch * (i + 1)) - gap;
+        pills[static_cast<std::size_t>(i)]->setBounds(x, 0, right - x, getHeight());
     }
 }
 } // namespace animalaudio::ui

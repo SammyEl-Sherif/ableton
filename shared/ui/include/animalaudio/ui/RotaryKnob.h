@@ -20,6 +20,7 @@ public:
 
     /** The value arc starts at this value instead of the minimum, e.g. 0 dB for a bipolar gain knob. */
     void setArcOrigin(double value);
+    std::optional<double> getArcOrigin() const noexcept { return arcOrigin; }
 
 protected:
     /** Draw the knob cap inside a circle of `radius` around `centre`, pointing at `angle` (radians,
