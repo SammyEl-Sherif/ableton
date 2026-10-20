@@ -56,7 +56,8 @@ def ensure_supabase_linked(web_repo: Path, *, dry_run: bool) -> None:
 def sql_update(m: Manifest) -> str:
     return (
         "update public.plugin_releases "
-        f"set sha256 = '{m.sha256}', byte_size = {m.byte_size}, published_at = now() "
+        f"set version = '{m.version}', storage_path = '{m.storage_path}', file_name = '{m.file_name}', "
+        f"sha256 = '{m.sha256}', byte_size = {m.byte_size}, published_at = now() "
         f"where plugin_slug = '{m.plugin_slug}' and platform = '{m.platform}' and is_active = true;"
     )
 
