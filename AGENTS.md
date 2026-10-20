@@ -99,6 +99,8 @@ the script against a temp prefix on Linux/macOS/Windows after the build). The sk
 
 ## Build stamp
 
+Release semver is `project(AnimalAudio VERSION …)` in the root `CMakeLists.txt` (see [docs/RELEASE.md](docs/RELEASE.md)); bump it before Duck releases so the UI stamp, artifacts, and GitHub tag `vX.Y.Z` stay aligned.
+
 Every plugin shows `version | git SHA | date` (small text at the bottom of the left panel of `ShaperEditor`, and the tooltip
 of the ANIMAL AUDIO badge, which needs the `TooltipWindow` the editor owns). `cmake/AnimalAudioBuildInfo.cmake` adds the
 always-run `aa_build_info` target that writes `build/generated/animalaudio_build_info.h` (only when content changes: version

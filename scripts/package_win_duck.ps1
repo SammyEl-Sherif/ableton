@@ -4,7 +4,11 @@
 # Optional: $env:AA_DUCK_VERSION = "1.0.0"
 
 $ErrorActionPreference = "Stop"
-$version = if ($env:AA_DUCK_VERSION) { $env:AA_DUCK_VERSION } else { "1.0.0" }
+if ($env:AA_DUCK_VERSION) {
+    $version = $env:AA_DUCK_VERSION
+} else {
+    $version = (python scripts/read_project_version.py).Trim()
+}
 $buildDir = if ($env:AA_BUILD_DIR) { $env:AA_BUILD_DIR } else { "build" }
 $bundle = Join-Path $buildDir "plugins\duck\Duck_artefacts\Release\VST3\Duck.vst3"
 $distDir = Join-Path "dist" "releases\$version"

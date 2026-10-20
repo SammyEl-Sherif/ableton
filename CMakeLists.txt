@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(AnimalAudio VERSION 0.1.0 LANGUAGES C CXX
+project(AnimalAudio VERSION 1.0.0 LANGUAGES C CXX
     DESCRIPTION "Animal Audio - a series of VST3 plugins with juice")
 
 set(CMAKE_CXX_STANDARD 17)

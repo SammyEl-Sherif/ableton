@@ -1,28 +1,23 @@
-# Manual Duck release on macOS (sign + notarize + validate + optional upload).
-# Configure repository secrets before use (Settings → Secrets → Actions):
-#   AA_CODESIGN_IDENTITY     Developer ID Application: … (TEAMID)
-#   AA_NOTARY_KEY_ID
-#   AA_NOTARY_ISSUER
-#   AA_NOTARY_P8_BASE64      Contents of AuthKey_XXXX.p8, base64-encoded
-#   AA_DEVELOPER_ID_P12_BASE64   Developer ID Application .p12 export, base64
-#   AA_DEVELOPER_ID_P12_PASSWORD
-#   AA_INSTALLER_CODESIGN_IDENTITY  Developer ID Installer: … (or set in notary.env on runner)
-#   AA_SUPABASE_ACCESS_TOKEN  Supabase PAT for upload
-#   AA_SUPABASE_DB_PASSWORD     DB password for supabase link in CI
-#   AA_WEB_REPO_GITHUB_TOKEN    PAT to checkout animal-audio-web (if needed)
+# Manual Duck release on macOS (sign + notarize + validate + optional Supabase upload).
+# Version comes from project(AnimalAudio VERSION …) in CMakeLists.txt — bump that before you ship.
+#
+# Repository secrets: docs/GITHUB_ACTIONS_SECRETS.md
 name: Release Duck (macOS)
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Release version (e.g. 1.0.0)
-        required: true
-        default: "1.0.0"
       upload:
         description: Upload to Supabase after validation
         type: boolean
         default: false
+      publish_github_release:
+        description: Create or update GitHub Release v{VERSION} with Mac artifacts
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -30,7 +25,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: false
+
+      - name: Read release version (CMake)
+        id: version
+        run: echo "value=$(python3 scripts/read_project_version.py)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout animal-audio-web
         if: ${{ inputs.upload }}
@@ -77,7 +77,7 @@ jobs:
 
       - name: Release pipeline
         env:
-          AA_DUCK_VERSION: ${{ inputs.version }}
+          AA_DUCK_VERSION: ${{ steps.version.outputs.value }}
           AA_WEB_REPO: ${{ github.workspace }}/animal-audio-web
           AA_SUPABASE_ACCESS_TOKEN: ${{ secrets.AA_SUPABASE_ACCESS_TOKEN }}
           AA_SUPABASE_DB_PASSWORD: ${{ secrets.AA_SUPABASE_DB_PASSWORD }}
@@ -89,11 +89,20 @@ jobs:
           if [ "${{ inputs.upload }}" = "true" ]; then
             upload_flag=--upload
           fi
-          ./scripts/release_duck.sh --version "$AA_DUCK_VERSION" $upload_flag
+          ./scripts/release_duck.sh $upload_flag
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: duck-release-${{ inputs.version }}-mac
-          path: dist/releases/${{ inputs.version }}/
+          name: duck-release-${{ steps.version.outputs.value }}-mac
+          path: dist/releases/${{ steps.version.outputs.value }}/
           if-no-files-found: error
+
+      - name: Publish GitHub Release (mac)
+        if: ${{ inputs.publish_github_release }}
+        uses: ./.github/actions/publish-duck-github-release
+        with:
+          version: ${{ steps.version.outputs.value }}
+          files: |
+            dist/releases/${{ steps.version.outputs.value }}/Duck-${{ steps.version.outputs.value }}-mac-installer.pkg
+            dist/releases/${{ steps.version.outputs.value }}/manifest-mac.json
