@@ -175,7 +175,7 @@ def validate_zip(
         version=version,
         platform=platform_name,
         file_name=file_name,
-        storage_path=info.storage_path(file_name),
+        storage_path=info.storage_path(file_name, version),
         sha256=digest,
         byte_size=byte_size,
     )
@@ -214,7 +214,7 @@ def validate_mac_pkg(
         version=version,
         platform="mac",
         file_name=file_name,
-        storage_path=info.storage_path(file_name),
+        storage_path=info.storage_path(file_name, version),
         sha256=digest,
         byte_size=byte_size,
     )

@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -33,11 +34,24 @@ class Manifest:
         return Manifest(**data)
 
 
+def resolve_executable(name: str) -> str:
+    # On Windows, npx is npx.cmd; CreateProcess does not apply PATHEXT to bare names.
+    return shutil.which(name) or name
+
+
+def redact(cmd: list[str]) -> list[str]:
+    out = list(cmd)
+    for i, arg in enumerate(out[:-1]):
+        if arg in ("--token", "--password"):
+            out[i + 1] = "***"
+    return out
+
+
 def run(cmd: list[str], *, cwd: Path, dry_run: bool) -> None:
-    print("$ " + " ".join(cmd))
+    print("$ " + " ".join(redact(cmd)))
     if dry_run:
         return
-    subprocess.run(cmd, cwd=cwd, check=True)
+    subprocess.run([resolve_executable(cmd[0]), *cmd[1:]], cwd=cwd, check=True)
 
 
 def ensure_supabase_linked(web_repo: Path, *, dry_run: bool) -> None:

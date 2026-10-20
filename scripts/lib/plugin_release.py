@@ -50,8 +50,8 @@ class PluginReleaseInfo:
     def win_zip_name(self) -> str:
         return f"{self.product_name}-{self.version}-win-vst3.zip"
 
-    def storage_path(self, file_name: str) -> str:
-        return f"{self.slug}/{self.version}/{file_name}"
+    def storage_path(self, file_name: str, version: str | None = None) -> str:
+        return f"{self.slug}/{version or self.version}/{file_name}"
 
     def bundle_build_rel(self, config: str = "Release") -> str:
         return f"plugins/{self.slug}/{self.cmake_target}_artefacts/{config}/VST3/{self.bundle_name}"

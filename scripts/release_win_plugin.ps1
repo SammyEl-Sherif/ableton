@@ -32,7 +32,11 @@ $env:AA_PLUGIN_VERSION = $meta.version
 function Invoke-Step([string]$Label, [scriptblock]$Block) {
     Write-Host ""
     Write-Host "== $Label"
+    $global:LASTEXITCODE = 0
     & $Block
+    if ($LASTEXITCODE -ne 0) {
+        throw "Step failed ($Label): exit code $LASTEXITCODE"
+    }
 }
 
 if (-not $SkipBuild) {
