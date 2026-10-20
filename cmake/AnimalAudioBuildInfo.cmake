@@ -1,30 +1,35 @@
-# Build stamp (version + git short SHA + date) for every plugin.
-#
-# `aa_build_info` runs on every build (it is cheap and only rewrites the header when something changed), so the
-# stamp reflects the commit that was actually compiled, not the one that was checked out at configure time.
-# `animalaudio::build_info` carries the include directory and the build-order dependency; animalaudio::core links it,
-# so every plugin and test target gets it without doing anything. Only shared/core/src/BuildStamp.cpp includes the
-# generated header.
-set(AA_BUILD_INFO_DIR "${CMAKE_BINARY_DIR}/generated")
-set(AA_BUILD_INFO_HEADER "${AA_BUILD_INFO_DIR}/animalaudio_build_info.h")
+# Per-plugin build stamp (version + git SHA + date). Each VST3 target gets its own generated header
+# under build/generated/build_info/<Target>/animalaudio_build_info.h (version from plugins/<slug>/VERSION).
 
-add_custom_target(aa_build_info ALL
-    COMMAND ${CMAKE_COMMAND}
-        -DOUT=${AA_BUILD_INFO_HEADER}
+function(aa_attach_plugin_build_info target version)
+    if(NOT target OR NOT version)
+        message(FATAL_ERROR "aa_attach_plugin_build_info: target and version are required")
+    endif()
+
+    set(_info_dir "${CMAKE_BINARY_DIR}/generated/build_info/${target}")
+    set(_header "${_info_dir}/animalaudio_build_info.h")
+
+    add_custom_target(aa_build_info_${target}
+        COMMAND ${CMAKE_COMMAND}
+            -DOUT=${_header}
+            -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+            -DVERSION=${version}
+            -DLOCAL_BUILD=${AA_LOCAL_BUILD}
+            -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake
+        COMMENT "Generating build stamp for ${target}"
+        VERBATIM)
+
+    execute_process(COMMAND ${CMAKE_COMMAND}
+        -DOUT=${_header}
         -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
-        -DVERSION=${PROJECT_VERSION}
+        -DVERSION=${version}
         -DLOCAL_BUILD=${AA_LOCAL_BUILD}
-        -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake
-    COMMENT "Generating build stamp"
-    VERBATIM)
+        -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake)
 
-# The header must exist for IDE indexing and for configure-only runs.
-execute_process(COMMAND ${CMAKE_COMMAND}
-    -DOUT=${AA_BUILD_INFO_HEADER} -DSOURCE_DIR=${CMAKE_SOURCE_DIR} -DVERSION=${PROJECT_VERSION}
-    -DLOCAL_BUILD=${AA_LOCAL_BUILD}
-    -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake)
+    target_include_directories(${target} BEFORE PRIVATE ${_info_dir})
+    add_dependencies(${target} aa_build_info_${target})
+endfunction()
 
+# Legacy alias: INTERFACE target so nothing breaks if referenced; plugins no longer use a global header.
 add_library(animalaudio_build_info INTERFACE)
 add_library(animalaudio::build_info ALIAS animalaudio_build_info)
-target_include_directories(animalaudio_build_info INTERFACE ${AA_BUILD_INFO_DIR})
-add_dependencies(animalaudio_build_info aa_build_info)

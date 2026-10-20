@@ -15,8 +15,11 @@ aa_add_plugin(IcePenguin
 target_include_directories(IcePenguin PRIVATE Source)
 
 if(AA_BUILD_TESTS)
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" _icepenguin_version)
+    string(STRIP "${_icepenguin_version}" _icepenguin_version)
     add_executable(IcePenguinTests tests/IcePenguinTests.cpp ${ICEPENGUIN_SOURCES})
     target_include_directories(IcePenguinTests PRIVATE Source)
+    aa_attach_plugin_build_info(IcePenguinTests "${_icepenguin_version}")
     target_link_libraries(IcePenguinTests PRIVATE
         animalaudio::testing
         juce::juce_recommended_config_flags

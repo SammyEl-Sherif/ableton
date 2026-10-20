@@ -9,7 +9,7 @@
 # Wraps juce_add_plugin with the Animal Audio defaults (manufacturer, VST3 only,
 # Ableton-friendly category, shared libs linked, warnings on).
 function(aa_add_plugin target)
-    cmake_parse_arguments(AA "" "PRODUCT_NAME;PLUGIN_CODE;DESCRIPTION;IS_SYNTH;BUNDLE_ID" "SOURCES" ${ARGN})
+    cmake_parse_arguments(AA "" "PRODUCT_NAME;PLUGIN_CODE;DESCRIPTION;IS_SYNTH;BUNDLE_ID;VERSION" "SOURCES" ${ARGN})
 
     if(NOT AA_PRODUCT_NAME OR NOT AA_PLUGIN_CODE)
         message(FATAL_ERROR "aa_add_plugin(${target}): PRODUCT_NAME and PLUGIN_CODE are required")
@@ -53,9 +53,15 @@ function(aa_add_plugin target)
 
     target_sources(${target} PRIVATE ${AA_SOURCES})
 
-    # Refresh the build stamp before this plugin compiles (also implied by linking animalaudio::core, but explicit
-    # is what every generator, including Visual Studio, reliably honours).
-    add_dependencies(${target} aa_build_info)
+    if(NOT AA_VERSION)
+        set(_version_file "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
+        if(NOT EXISTS "${_version_file}")
+            message(FATAL_ERROR "aa_add_plugin(${target}): missing ${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
+        endif()
+        file(READ "${_version_file}" AA_VERSION)
+        string(STRIP "${AA_VERSION}" AA_VERSION)
+    endif()
+    aa_attach_plugin_build_info(${target} "${AA_VERSION}")
 
     target_compile_definitions(${target} PUBLIC
         JUCE_WEB_BROWSER=0
