@@ -27,5 +27,7 @@ gh secret set SECRET_NAME -R SammyEl-Sherif/ableton
 | `AA_NOTARY_P8_BASE64` | `base64 -i ~/.appstoreconnect/AuthKey_XXXX.p8 \| pbcopy` |
 | `AA_DEVELOPER_ID_P12_BASE64` | Base64 of exported **Developer ID Application** `.p12` |
 | `AA_DEVELOPER_ID_P12_PASSWORD` | Password used when exporting the `.p12` |
+| `AA_DEVELOPER_ID_INSTALLER_P12_BASE64` | Base64 of exported **Developer ID Installer** `.p12` (cert + private key; `productsign` needs it) |
+| `AA_DEVELOPER_ID_INSTALLER_P12_PASSWORD` | Optional; password for the Installer `.p12` (defaults to `AA_DEVELOPER_ID_P12_PASSWORD`) |
 
 Windows release does not need Apple signing secrets.

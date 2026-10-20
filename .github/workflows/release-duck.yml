@@ -6,6 +6,8 @@
 #   AA_NOTARY_P8_BASE64      Contents of AuthKey_XXXX.p8, base64-encoded
 #   AA_DEVELOPER_ID_P12_BASE64   Developer ID Application .p12 export, base64
 #   AA_DEVELOPER_ID_P12_PASSWORD
+#   AA_DEVELOPER_ID_INSTALLER_P12_BASE64   Developer ID Installer .p12 export, base64 (signs the .pkg)
+#   AA_DEVELOPER_ID_INSTALLER_P12_PASSWORD (optional; defaults to AA_DEVELOPER_ID_P12_PASSWORD)
 #   AA_INSTALLER_CODESIGN_IDENTITY  Developer ID Installer: … (or set in notary.env on runner)
 #   AA_SUPABASE_ACCESS_TOKEN  Supabase PAT for upload
 #   AA_SUPABASE_DB_PASSWORD     DB password for supabase link in CI
@@ -43,22 +45,37 @@ jobs:
       - name: Install Ninja
         run: brew install ninja
 
-      - name: Import Developer ID certificate
+      - name: Import Developer ID certificates
         env:
           P12_BASE64: ${{ secrets.AA_DEVELOPER_ID_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.AA_DEVELOPER_ID_P12_PASSWORD }}
+          INSTALLER_P12_BASE64: ${{ secrets.AA_DEVELOPER_ID_INSTALLER_P12_BASE64 }}
+          INSTALLER_P12_PASSWORD: ${{ secrets.AA_DEVELOPER_ID_INSTALLER_P12_PASSWORD }}
         run: |
           set -euo pipefail
           if [ -z "${P12_BASE64:-}" ]; then
             echo "AA_DEVELOPER_ID_P12_BASE64 secret is required for signed releases."
             exit 1
           fi
+          if [ -z "${INSTALLER_P12_BASE64:-}" ]; then
+            echo "AA_DEVELOPER_ID_INSTALLER_P12_BASE64 secret is required to sign the .pkg (Developer ID Installer)."
+            exit 1
+          fi
           echo "$P12_BASE64" | base64 --decode > /tmp/devid.p12
+          echo "$INSTALLER_P12_BASE64" | base64 --decode > /tmp/devid-installer.p12
           security create-keychain -p actions build.keychain
+          security list-keychains -d user -s build.keychain login.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p actions build.keychain
+          # Notarization can take many minutes; keep the keychain unlocked for productsign afterwards.
+          security set-keychain-settings -lut 21600 build.keychain
           security import /tmp/devid.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security import /tmp/devid-installer.p12 -k build.keychain -P "${INSTALLER_P12_PASSWORD:-$P12_PASSWORD}" \
+            -T /usr/bin/productsign -T /usr/bin/productbuild -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
+          rm -f /tmp/devid.p12 /tmp/devid-installer.p12
+          security find-identity -v build.keychain | grep -q "Developer ID Installer:" \
+            || { echo "Developer ID Installer identity not found after import."; exit 1; }
 
       - name: Write notary API key
         env:
