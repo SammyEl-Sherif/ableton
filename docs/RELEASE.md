@@ -5,7 +5,7 @@
 | Platform | animal.audio | How to ship |
 | --- | --- | --- |
 | **Mac** | **Live** — `Duck-1.0.0-mac-installer.pkg` | `./scripts/release_duck.sh --upload` or Actions → **Release Duck (macOS)** |
-| **Windows** | **Not live** until zip is uploaded | Actions → **Release Duck (Windows)** or `.\scripts\release_win_duck.ps1 -Upload` on a PC |
+| **Windows** | **Live** — `Duck-1.0.0-win-vst3.zip` | Actions → **Release Duck (Windows)** (build); upload needs repo secrets below |
 
 ---
 
