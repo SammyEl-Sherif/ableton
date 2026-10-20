@@ -1,6 +1,6 @@
 ---
 name: vst
-description: Create a new Animal Audio VST3 plugin end to end in this monorepo (scaffold, DSP, animal-themed design with its own palette and Motif—layout flexible, not Duck-cloned, tests, build all plugins and fix build errors, pluginval, docs, PR). Use when the user runs /vst <name or idea> or asks for a new plugin in the series. Enforces DRY and branding (BrandBadge, Theme, shared libraries).
+description: Create a new Animal Audio VST3 plugin end to end in this monorepo (scaffold, DSP, animal-themed design with its own palette and Motif—layout flexible, not Duck-cloned, tests, build all plugins and fix build errors, local build+install on the user's machine, pluginval, docs, PR). Use when the user runs /vst <name or idea> or asks for a new plugin in the series. Enforces DRY and branding (BrandBadge, Theme, shared libraries).
 argument-hint: '<plugin name or idea, e.g. "Otter: a tempo-synced stereo wobbler">'
 ---
 
@@ -26,6 +26,9 @@ Non-negotiables:
    IDs and plugin codes are saved-state contract.
 4. **Prove it.** Build, run ctest, run pluginval, look at the screenshot. Do not claim DAW validation you
    did not do.
+5. **Ship it on their machine.** When you have shell access on the user's computer, **build and install the
+   new VST3 locally** before you finish (see §8). They should be able to rescan in Live and load the plugin
+   without running cmake themselves.
 
 ## 1. Pick and confirm the concept
 
@@ -195,6 +198,38 @@ nothing clipped, text readable.
 VST3 target and shared test stays green. Fix any compile/link/test regressions you introduced. Run
 `scripts/check_repo.sh`.
 
+### Build and install locally for the user (required when you can)
+
+If this session runs on the **user's machine** (typical Cursor agent with shell access), you must **compile
+and install** the new plugin into their OS VST3 folder—not only run tests in `build/`. Do this after §8
+passes (or as the last step of verify). Use `scripts/install_plugins.py`; do not reimplement paths by hand.
+
+```bash
+# Preferred: clean Release build of just the new plugin + install (folder = lowercase PascalCase name)
+python3 scripts/install_plugins.py --build --clean --only <name_lower>
+
+# If build/ is already green from verify and you only need install:
+cmake --build build --target <Name>_VST3 --parallel
+python3 scripts/install_plugins.py --only <name_lower>
+```
+
+`<name_lower>` is the plugin folder under `plugins/` (e.g. `icepenguin` for target `IcePenguin`). The script
+prints each **installed path** and **build stamp**; repeat that list to the user.
+
+**Host steps** (same as `/setup`; say this every time):
+
+1. **Ableton Live → Preferences → Plug-ins** — enable **Use VST3 Plug-In System Folders**.
+2. **Rescan** (hold **Option** / **Alt** for a full rescan if the plugin does not appear).
+3. Add **Plug-Ins → VST3 → Animal Audio →** the plugin's display name (`getName()` / UI title).
+4. Confirm the build stamp (hover **ANIMAL AUDIO** badge) matches what the install script printed.
+
+**Cloud / no local shell:** skip install, say so explicitly, and give the two commands above plus a pointer
+to `.cursor/skills/setup/SKILL.md` for a full-series install.
+
+**Bundle name:** In `aa_add_plugin`, set `PRODUCT_NAME` to the PascalCase target name (e.g. `IcePenguin`) so
+the artefact is `<Name>.vst3`. Spaces in `PRODUCT_NAME` break `verify_plugin.sh` and confuse install paths.
+Marketing names (e.g. "Ice Penguin") belong in `getName()` and `theme.name` only.
+
 ## 9. Docs
 
 - README: the plugin-table row (the script adds a stub; replace the status with what you really verified),
@@ -209,4 +244,6 @@ VST3 target and shared test stays green. Fix any compile/link/test regressions y
 - Push the branch, open the PR to `main` (draft is fine). Description: what the plugin does, animal + palette
   hue, what was extracted to shared/ (and which plugins it touched), exactly what was verified (ctest count,
   pluginval level, screenshot) and what was not (macOS/Windows, real DAW), assumptions you made.
-- Final report to the user, briefly: PR link, what was built, what was shared/extracted, verification, caveats.
+- Final report to the user, briefly: PR link (if any), what was built, what was shared/extracted, verification,
+  **installed VST3 path(s) and build stamp** (if you ran install), Ableton rescan reminder, caveats (DAW not
+  tried unless they confirmed load).

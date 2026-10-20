@@ -15,6 +15,7 @@ option(AA_BUILD_TESTS "Build unit tests (Catch2)" ON)
 option(AA_BUILD_TOOLS "Build developer tools (e.g. headless UI screenshot renderers)" OFF)
 option(AA_BUILD_STANDALONE "Also build Standalone apps (handy for local debugging)" OFF)
 option(AA_COPY_PLUGINS_AFTER_BUILD "Install VST3 into the user plugin folder after build" OFF)
+option(AA_LOCAL_BUILD "Suffix product name with Local (dev installs; release scripts turn this OFF)" OFF)
 set(AA_PLUGINS "" CACHE STRING "Semicolon-separated plugin folder names to build (empty = all in plugins/)")
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
