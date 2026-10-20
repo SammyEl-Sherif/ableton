@@ -23,8 +23,8 @@ void drawSnowflake(juce::Graphics& g, juce::Point<float> centre, float radius, j
         flake.lineTo(branch.x + std::sin(a - 0.55f) * radius * 0.22f, branch.y - std::cos(a - 0.55f) * radius * 0.22f);
     }
     g.setColour(colour);
-    g.strokePath(
-        flake, juce::PathStrokeType(radius * 0.12f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.strokePath(flake,
+                 juce::PathStrokeType(radius * 0.12f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 } // namespace
 
