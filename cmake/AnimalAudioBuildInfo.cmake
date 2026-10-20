@@ -1,6 +1,8 @@
 # Per-plugin build stamp (version + git SHA + date). Each VST3 target gets its own generated header
 # under build/generated/build_info/<Target>/animalaudio_build_info.h (version from plugins/<slug>/VERSION).
 
+get_filename_component(AA_CMAKE_MODULE_DIR "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
+
 function(aa_attach_plugin_build_info target version)
     if(NOT target OR NOT version)
         message(FATAL_ERROR "aa_attach_plugin_build_info: target and version are required")
@@ -15,7 +17,7 @@ function(aa_attach_plugin_build_info target version)
             -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
             -DVERSION=${version}
             -DLOCAL_BUILD=${AA_LOCAL_BUILD}
-            -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake
+            -P ${AA_CMAKE_MODULE_DIR}/GenerateBuildInfo.cmake
         COMMENT "Generating build stamp for ${target}"
         VERBATIM)
 
@@ -24,7 +26,7 @@ function(aa_attach_plugin_build_info target version)
         -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
         -DVERSION=${version}
         -DLOCAL_BUILD=${AA_LOCAL_BUILD}
-        -P ${CMAKE_CURRENT_LIST_DIR}/GenerateBuildInfo.cmake)
+        -P ${AA_CMAKE_MODULE_DIR}/GenerateBuildInfo.cmake)
 
     target_include_directories(${target} BEFORE PRIVATE ${_info_dir})
     add_dependencies(${target} aa_build_info_${target})

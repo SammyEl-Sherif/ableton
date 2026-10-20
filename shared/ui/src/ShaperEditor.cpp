@@ -61,12 +61,19 @@ ShaperEditor::~ShaperEditor()
 
 void ShaperEditor::timerCallback()
 {
+    const bool playing = owner.isHostTransportPlaying();
+    if (playing)
+        ambientTimeSeconds = juce::Time::getMillisecondCounterHiRes() * 0.001;
+
     const auto source = owner.getSyncSource();
     if (source != shownSource)
     {
         shownSource = source;
         repaint(statusArea);
     }
+
+    if (playing)
+        repaint();
 }
 
 void ShaperEditor::resized()
@@ -109,7 +116,7 @@ void ShaperEditor::paint(juce::Graphics& g)
         juce::Path clip;
         clip.addRoundedRectangle(leftPanel, 14.0f);
         g.reduceClipRegion(clip);
-        theme.motif->drawAmbient(g, leftPanel.withTop(leftPanel.getBottom() - 70.0f), 0.0, palette);
+        theme.motif->drawAmbient(g, leftPanel.withTop(leftPanel.getBottom() - 70.0f), ambientTimeSeconds, palette);
         theme.motif->drawDecoration(g, leftPanel, palette);
     }
 

@@ -62,6 +62,7 @@ private:
 
     juce::Rectangle<int> statusArea;
     dsp::SyncSource shownSource = dsp::SyncSource::FreeRun;
+    double ambientTimeSeconds = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ShaperEditor)
 };

@@ -78,6 +78,10 @@ void CurveEditor::changeListenerCallback(juce::ChangeBroadcaster*)
 
 void CurveEditor::timerCallback()
 {
+    if (!processor.isHostTransportPlaying())
+        return;
+
+    ambientTimeSeconds = juce::Time::getMillisecondCounterHiRes() * 0.001;
     repaint();
 }
 
@@ -181,7 +185,7 @@ void CurveEditor::paint(juce::Graphics& g)
 {
     const auto bounds = getLocalBounds().toFloat();
     const auto plot = getPlotArea();
-    const double seconds = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    const double seconds = phaseOverride >= 0.0f ? 0.0 : ambientTimeSeconds;
 
     // panel + water motif
     g.setColour(colours.panel.darker(0.25f));
