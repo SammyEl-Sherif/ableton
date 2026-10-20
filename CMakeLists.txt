@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(AnimalAudio VERSION 0.1.0 LANGUAGES C CXX
-    DESCRIPTION "Animal Audio - a series of VST3 plugins with juice")
+project(AnimalAudio VERSION 0.0.0 LANGUAGES C CXX
+    DESCRIPTION "Animal Audio monorepo (per-plugin semver in plugins/<name>/VERSION)")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,4 +36,8 @@ foreach(plugin_dir IN LISTS AA_PLUGIN_DIRS)
     endif()
     message(STATUS "Animal Audio plugin: ${plugin_dir}")
     add_subdirectory(plugins/${plugin_dir})
+    list(APPEND AA_CONFIGURED_PLUGINS ${plugin_dir})
 endforeach()
+if(NOT AA_CONFIGURED_PLUGINS)
+    message(FATAL_ERROR "No plugins configured (AA_PLUGINS='${AA_PLUGINS}'); expected folder names under plugins/")
+endif()

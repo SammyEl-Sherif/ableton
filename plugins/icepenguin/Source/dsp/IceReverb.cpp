@@ -135,8 +135,8 @@ void IceReverb::rebuildDelayLengths() noexcept
 
     for (int i = 0; i < kLines; ++i)
     {
-        const int len =
-            std::clamp(static_cast<int>(std::lround(kBaseLineDelays441[i] * srScale * sizeMul)), 64, kMaxDelaySamples - 4);
+        const int len = std::clamp(static_cast<int>(std::lround(kBaseLineDelays441[i] * srScale * sizeMul)), 64,
+                                   kMaxDelaySamples - 4);
         delays[static_cast<std::size_t>(i)].setLength(len);
     }
 
@@ -144,8 +144,7 @@ void IceReverb::rebuildDelayLengths() noexcept
     const int erBase441[kErTaps] = {347, 577, 911, 1381};
     erGain = {0.55f, 0.42f, 0.32f, 0.24f};
     for (int t = 0; t < kErTaps; ++t)
-        erOffsetSamples[static_cast<std::size_t>(t)] =
-            std::max(1, static_cast<int>(erBase441[t] * erScale * 0.35f));
+        erOffsetSamples[static_cast<std::size_t>(t)] = std::max(1, static_cast<int>(erBase441[t] * erScale * 0.35f));
 }
 
 void IceReverb::updateFeedbackTarget() noexcept

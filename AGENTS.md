@@ -99,13 +99,14 @@ the script against a temp prefix on Linux/macOS/Windows after the build). The sk
 
 ## Build stamp
 
-Every plugin shows `version | git SHA | date` (small text at the bottom of the left panel of `ShaperEditor`, and the tooltip
-of the ANIMAL AUDIO badge, which needs the `TooltipWindow` the editor owns). `cmake/AnimalAudioBuildInfo.cmake` adds the
-always-run `aa_build_info` target that writes `build/generated/animalaudio_build_info.h` (only when content changes: version
-from `project()`, `git rev-parse --short=7 HEAD` plus `+dirty` for uncommitted changes, UTC date; env overrides `AA_BUILD_SHA`,
-`AA_BUILD_DATE`). `shared/core/src/BuildStamp.cpp` is the only consumer; `animalaudio::core` links `animalaudio::build_info`, so
-plugins, tests and the template get it with no per-plugin work. The binary also embeds `AA-BUILD|version|sha|date|`,
-which `install_plugins.py` reads to report what is installed without loading it in a host.
+Each plugin’s **release semver** is `plugins/<slug>/VERSION` (independent per product). `aa_add_plugin` reads that file and
+`aa_attach_plugin_build_info` generates `build/generated/build_info/<Target>/animalaudio_build_info.h` for that target only
+(see [docs/RELEASE.md](docs/RELEASE.md)). Bump one plugin’s VERSION and run its release pipeline without affecting others.
+GitHub release tags are `<slug>-vX.Y.Z` (e.g. `duck-v1.0.0`, `icepenguin-v0.1.0`).
+
+Every plugin shows `version | git SHA | date` in the UI. Version in the stamp comes from that plugin’s VERSION file; git SHA and
+UTC date come from `cmake/GenerateBuildInfo.cmake` (`AA_BUILD_SHA` / `AA_BUILD_DATE` override). The binary embeds
+`AA-BUILD|version|sha|date|`, which `install_plugins.py` reads without loading a host.
 
 ## Creating a plugin with `/vst`
 

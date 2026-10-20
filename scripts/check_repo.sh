@@ -27,7 +27,7 @@ done
 
 python_bin="$(command -v python3 || command -v python || true)"
 if [ -n "$python_bin" ]; then
-    for script in scripts/*.py scripts/tests/*.py; do
+    for script in scripts/*.py scripts/lib/*.py scripts/tests/*.py; do
         "$python_bin" -m py_compile "$script" || { echo "error: syntax error in $script" >&2; status=1; }
     done
     "$python_bin" -m unittest discover -s scripts/tests || status=1

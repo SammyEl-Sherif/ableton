@@ -15,11 +15,18 @@ aa_add_plugin(IcePenguin
 target_include_directories(IcePenguin PRIVATE Source)
 
 if(AA_BUILD_TESTS)
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" _icepenguin_version)
+    string(STRIP "${_icepenguin_version}" _icepenguin_version)
     add_executable(IcePenguinTests tests/IcePenguinTests.cpp ${ICEPENGUIN_SOURCES})
     target_include_directories(IcePenguinTests PRIVATE Source)
+    aa_attach_plugin_build_info(IcePenguinTests "${_icepenguin_version}")
     target_link_libraries(IcePenguinTests PRIVATE
         animalaudio::testing
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
+    # IceReverb embeds multi-MiB delay buffers; default MSVC 1 MiB stack overflows in Catch2 tests.
+    if(MSVC)
+        target_link_options(IcePenguinTests PRIVATE "LINKER:/STACK:8388608")
+    endif()
     catch_discover_tests(IcePenguinTests TEST_PREFIX "icepenguin." PROPERTIES RESOURCE_LOCK native_display)
 endif()

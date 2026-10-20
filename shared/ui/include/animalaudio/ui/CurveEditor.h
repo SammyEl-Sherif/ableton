@@ -69,6 +69,7 @@ private:
     Hit hovered;
     Hit dragging;
     float phaseOverride = -1.0f;
+    double ambientTimeSeconds = 0.0;
 
     static constexpr float kNodeHitRadius = 10.0f;
     static constexpr float kBendHitRadius = 9.0f;

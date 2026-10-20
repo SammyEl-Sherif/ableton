@@ -63,8 +63,8 @@ IcePenguinEditor::IcePenguinEditor(IcePenguinProcessor& processor)
     for (int i = 0; i < kNumReverbPresets; ++i)
     {
         const auto& presetName = presets[static_cast<std::size_t>(i)].name;
-        auto button = std::make_unique<animalaudio::ui::PillButton>(
-            juce::String(presetName.data(), presetName.size()), theme.palette);
+        auto button = std::make_unique<animalaudio::ui::PillButton>(juce::String(presetName.data(), presetName.size()),
+                                                                    theme.palette);
         button->setTriggeredOnMouseDown(true);
         button->setClickingTogglesState(false);
         button->onClick = [&, i]()
@@ -110,8 +110,8 @@ void IcePenguinEditor::parameterChanged(const juce::String& parameterID, float)
 
 void IcePenguinEditor::refreshPresetHighlight()
 {
-    const int selected = dynamic_cast<juce::AudioParameterChoice*>(owner.apvts.getParameter(ids::preset.getParamID()))
-                             ->getIndex();
+    const int selected =
+        dynamic_cast<juce::AudioParameterChoice*>(owner.apvts.getParameter(ids::preset.getParamID()))->getIndex();
     for (int i = 0; i < kNumReverbPresets; ++i)
         presetButtons[static_cast<std::size_t>(i)]->setToggleState(i == selected, juce::dontSendNotification);
 }
@@ -163,8 +163,8 @@ void IcePenguinEditor::paint(juce::Graphics& g)
     g.setColour(theme.palette.textDim);
     g.setFont(animalaudio::ui::makeFont(10.0f));
     g.drawText(animalaudio::core::buildStampShort(),
-               juce::Rectangle<float>(leftPanel.getX() + 16.0f, leftPanel.getBottom() - 20.0f, leftPanel.getWidth() - 32.0f,
-                                      14.0f),
+               juce::Rectangle<float>(leftPanel.getX() + 16.0f, leftPanel.getBottom() - 20.0f,
+                                      leftPanel.getWidth() - 32.0f, 14.0f),
                juce::Justification::centredLeft, false);
 }
 
@@ -203,7 +203,7 @@ void IcePenguinEditor::resized()
         const int row = i / cols;
         const int col = i % cols;
         presetButtons[static_cast<std::size_t>(i)]->setBounds(grid.getX() + col * (cellW + gap),
-                                                                grid.getY() + row * (cellH + gap), cellW, cellH);
+                                                              grid.getY() + row * (cellH + gap), cellW, cellH);
     }
 }
 } // namespace icepenguin

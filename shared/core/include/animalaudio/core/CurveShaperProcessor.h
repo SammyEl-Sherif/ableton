@@ -80,6 +80,9 @@ public:
         return static_cast<dsp::SyncSource>(syncSource.load(std::memory_order_relaxed));
     }
 
+    /** True when the host transport was playing on the last processed block (UI animation gate). */
+    bool isHostTransportPlaying() const noexcept { return hostTransportPlaying.load(std::memory_order_relaxed); }
+
     int getDivisionIndex() const;
     float getMix() const noexcept { return mixParam->load(); }
 
@@ -92,8 +95,12 @@ private:
     dsp::CurveTable localTable;
     std::uint64_t tableVersion = 0;
     std::atomic<int> syncSource{static_cast<int>(dsp::SyncSource::FreeRun)};
+    std::atomic<uint8_t> hostTransportPlaying{0};
 
     std::atomic<float>* divisionParam = nullptr;
+
+    /** Called on the audio thread after renderCycle(); freeze UI phase when transport is stopped. */
+    virtual void captureDisplayPhaseForUi(bool playing) noexcept { juce::ignoreUnused(playing); }
     std::atomic<float>* mixParam = nullptr;
     std::atomic<float>* fallbackBpmParam = nullptr;
 
@@ -124,7 +131,20 @@ public:
                        cycle.startPhase, cycle.increment);
     }
 
-    float getDisplayPhase() const override { return shaper.getDisplayPhase(); }
+    float getDisplayPhase() const override
+    {
+        if (isHostTransportPlaying())
+            return shaper.getDisplayPhase();
+        return frozenDisplayPhase.load(std::memory_order_relaxed);
+    }
+
+    void captureDisplayPhaseForUi(bool playing) noexcept override
+    {
+        if (playing)
+            frozenDisplayPhase.store(shaper.getDisplayPhase(), std::memory_order_relaxed);
+    }
+
+    std::atomic<float> frozenDisplayPhase{0.0f};
     int getNumScopeBins() const override { return dsp::CurveGainShaper::kScopeBins; }
     float getScopeBin(int index) const override { return shaper.getScopeBin(index); }
 

@@ -1,44 +1,44 @@
-# Duck release pipeline
+# Plugin release pipeline
 
-## Status
+## Version (independent per plugin)
 
-| Platform | animal.audio | How to ship |
-| --- | --- | --- |
-| **Mac** | **Live** — `Duck-1.0.0-mac-installer.pkg` | `./scripts/release_duck.sh --upload` or Actions → **Release Duck (macOS)** |
-| **Windows** | **Live** — `Duck-1.0.0-win-vst3.zip` | Actions → **Release Duck (Windows)** (build); upload needs repo secrets below |
+| Source | Role |
+| --- | --- |
+| `plugins/<slug>/VERSION` | **Semver for that product only** (e.g. Duck `1.0.0`, Ice Penguin `0.1.0`) |
+| Plugin UI build stamp | Same version as that plugin’s VERSION file |
+| Artifacts | `dist/releases/<slug>/<version>/…` |
+| GitHub Releases | Tag `<slug>-vX.Y.Z` (e.g. `duck-v1.0.0`) |
+| animal.audio | `plugin_releases` row per slug + platform (upload updates checksums) |
+
+```bash
+python3 scripts/read_plugin_version.py duck
+python3 scripts/read_plugin_version.py icepenguin --tag
+```
+
+**Ship a patch for one plugin:** edit only `plugins/duck/VERSION` (or the relevant slug), commit, add/update Supabase rows in **animal-audio-web** if needed, run that plugin’s release — no monorepo-wide bump.
+
+Root `CMakeLists.txt` `project(AnimalAudio VERSION 0.0.0)` is the monorepo marker only, not a product version.
 
 ---
 
-## macOS
+## Commands
 
-```bash
-source ~/.appstoreconnect/notary.env
-./scripts/release_duck.sh --upload
-```
+| Goal | Command |
+| --- | --- |
+| Mac (Duck .pkg) | `source ~/.appstoreconnect/notary.env && ./scripts/release_plugin.sh duck --upload` |
+| Windows | `.\scripts\release_win_plugin.ps1 -Plugin duck -Upload` |
+| GitHub Actions | **Release plugin** — choose slug + platform |
 
-Requires **two** certs in `notary.env`: `AA_CODESIGN_IDENTITY` = **Developer ID Application**, `AA_INSTALLER_CODESIGN_IDENTITY` = **Developer ID Installer**.
+Wrappers `./scripts/release_duck.sh` and `release_win_duck.ps1` still work.
 
-Primary artifact: `dist/releases/<version>/Duck-<version>-mac-installer.pkg` (Installer.app: welcome, license, change install location, password, Ableton rescan message).
+---
 
-## Windows
+## Status (example)
 
-On a Windows machine (PowerShell, repo root):
-
-```powershell
-.\scripts\release_win_duck.ps1 -Version 1.0.0 -Upload
-```
-
-Zip includes `Duck.vst3`, `Install-Duck.ps1`, EULA, and third-party notices. Users run **Install-Duck.ps1** (admin) or copy the bundle manually.
-
-### GitHub Actions (recommended)
-
-1. Set repository secrets (names are already created with placeholder values — replace each one): see [docs/GITHUB_ACTIONS_SECRETS.md](GITHUB_ACTIONS_SECRETS.md).
-
-2. Actions → **Release Duck (Windows)** → Run workflow → version `1.0.0`, upload **on**.
-
-3. Confirm on Supabase: Storage `plugin-releases/duck/1.0.0/Duck-1.0.0-win-vst3.zip` and `plugin_releases.win` has `sha256` + `byte_size`.
-
-Mac release workflow: **Release Duck (macOS)** (same Supabase secrets for upload).
+| Plugin | Version file | Mac | Windows |
+| --- | --- | --- | --- |
+| **duck** | `plugins/duck/VERSION` | `.pkg` + Actions (mac) | zip + Actions (win) |
+| **icepenguin** | `plugins/icepenguin/VERSION` | zip path TBD (no .pkg yet) | zip via `release_win_plugin.ps1` |
 
 ---
 
@@ -46,29 +46,23 @@ Mac release workflow: **Release Duck (macOS)** (same Supabase secrets for upload
 
 | Script | Role |
 | --- | --- |
-| [`scripts/release_duck.sh`](../scripts/release_duck.sh) | Mac orchestrator |
-| [`scripts/release_win_duck.ps1`](../scripts/release_win_duck.ps1) | Windows orchestrator |
-| [`scripts/validate_duck_release.py`](../scripts/validate_duck_release.py) | Validate `.pkg` or `.zip` |
-| [`scripts/upload_duck_release.py`](../scripts/upload_duck_release.py) | Supabase Storage + `plugin_releases` |
+| [`scripts/lib/plugin_release.py`](../scripts/lib/plugin_release.py) | Catalog: slug, target, product name, paths |
+| [`scripts/release_plugin.sh`](../scripts/release_plugin.sh) | Mac orchestrator |
+| [`scripts/release_win_plugin.ps1`](../scripts/release_win_plugin.ps1) | Windows orchestrator |
+| [`scripts/validate_plugin_release.py`](../scripts/validate_plugin_release.py) | Validate `.pkg` / `.zip` |
+| [`scripts/upload_plugin_release.py`](../scripts/upload_plugin_release.py) | Supabase upload |
 
-Local upload (after validate + `manifest-*.json`):
+Secrets: [docs/GITHUB_ACTIONS_SECRETS.md](GITHUB_ACTIONS_SECRETS.md).
 
-```bash
-export AA_WEB_REPO=/path/to/animal-audio-web
-python3 scripts/upload_duck_release.py --manifest dist/releases/1.0.0/manifest-win.json \
-  --zip dist/releases/1.0.0/Duck-1.0.0-win-vst3.zip
-```
-
-CI upload uses the same script with `AA_SUPABASE_ACCESS_TOKEN` (see `ensure_supabase_linked` in upload script).
+---
 
 ## Validate only
 
 ```bash
-python3 scripts/validate_duck_release.py --platform mac \
-  --artifact dist/releases/1.0.0/Duck-1.0.0-mac-installer.pkg \
-  --version 1.0.0 --require-notarized
+python3 scripts/validate_plugin_release.py --plugin duck --platform mac \
+  --artifact dist/releases/duck/1.0.0/Duck-1.0.0-mac-installer.pkg \
+  --require-notarized
 
-python3 scripts/validate_duck_release.py --platform win \
-  --artifact dist/releases/1.0.0/Duck-1.0.0-win-vst3.zip \
-  --version 1.0.0 --allow-unsigned
+python3 scripts/validate_plugin_release.py --plugin duck --platform win \
+  --artifact dist/releases/duck/1.0.0/Duck-1.0.0-win-vst3.zip --allow-unsigned
 ```

@@ -76,11 +76,13 @@ void CurveShaperProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         curveTableChanged(localTable);
 
     const auto transport = readTransport(getPlayHead());
+    hostTransportPlaying.store(transport.playing ? 1u : 0u, std::memory_order_relaxed);
     const auto division = divisionFromIndex(juce::roundToInt(divisionParam->load()));
     const auto block = tracker.beginBlock(transport, division, fallbackBpmParam->load(), buffer.getNumSamples());
     syncSource.store(static_cast<int>(block.source), std::memory_order_relaxed);
 
     renderCycle(buffer, {block.startPhase, block.increment, mixParam->load()});
+    captureDisplayPhaseForUi(transport.playing);
 }
 
 void CurveShaperProcessor::getStateInformation(juce::MemoryBlock& destData)

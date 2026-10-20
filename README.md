@@ -153,9 +153,9 @@ They are unsigned: on macOS run `xattr -dr com.apple.quarantine <Plugin>.vst3` a
 Mac builds for the website must be **Developer ID signed and notarized** before upload.
 
 1. Complete [docs/APPLE_DEVELOPER_SETUP.md](docs/APPLE_DEVELOPER_SETUP.md).
-2. Run the pipeline: `./scripts/release_duck.sh` (optionally `--upload`) — see [docs/RELEASE.md](docs/RELEASE.md).
-3. Validate an existing zip: `python3 scripts/validate_duck_release.py --platform mac --zip … --require-notarized`.
-4. Windows: `.\scripts\release_win_duck.ps1 -Upload` (or GitHub Actions → **Release Duck (Windows)**).
+2. Run the pipeline: `./scripts/release_plugin.sh duck` (optionally `--upload`) — see [docs/RELEASE.md](docs/RELEASE.md).
+3. Validate an existing artifact: `python3 scripts/validate_plugin_release.py --plugin duck --platform mac --artifact … --require-notarized`.
+4. Windows: `.\scripts\release_win_plugin.ps1 -Plugin duck -Upload` (or GitHub Actions → **Release plugin**, platform `win`).
 
 Upload paths and Supabase steps: [docs/RELEASE.md](docs/RELEASE.md) and **animal-audio-web** `docs/DOWNLOADS_LAUNCH.md`.
 

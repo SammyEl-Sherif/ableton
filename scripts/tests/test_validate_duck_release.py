@@ -1,7 +1,6 @@
-"""Tests for scripts/validate_duck_release.py (layout + stamp; no codesign)."""
+"""Tests for scripts/validate_plugin_release.py (Duck layout; no codesign)."""
 from __future__ import annotations
 
-import importlib.util
 import sys
 import tempfile
 import unittest
@@ -9,17 +8,10 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-SPEC = importlib.util.spec_from_file_location("validate_duck_release", ROOT / "scripts" / "validate_duck_release.py")
-validate = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
-sys.modules["validate_duck_release"] = validate
-SPEC.loader.exec_module(validate)
+sys.path.insert(0, str(ROOT / "scripts"))
 
-SPEC_IP = importlib.util.spec_from_file_location("install_plugins", ROOT / "scripts" / "install_plugins.py")
-ip = importlib.util.module_from_spec(SPEC_IP)
-assert SPEC_IP.loader is not None
-sys.modules["install_plugins"] = ip
-SPEC_IP.loader.exec_module(ip)
+import validate_plugin_release as validate  # noqa: E402
+from lib.plugin_release import get_plugin  # noqa: E402
 
 
 def make_minimal_mac_zip(dest: Path, *, local_name: bool = False) -> None:
@@ -45,6 +37,7 @@ class ValidateDuckReleaseTests(unittest.TestCase):
             make_minimal_mac_zip(zpath)
             manifest = validate.validate_zip(
                 zpath,
+                info=get_plugin("duck"),
                 platform_name="mac",
                 version="1.0.0",
                 require_notarized=False,
@@ -62,6 +55,7 @@ class ValidateDuckReleaseTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 validate.validate_zip(
                     zpath,
+                    info=get_plugin("duck"),
                     platform_name="mac",
                     version="1.0.0",
                     require_notarized=False,
