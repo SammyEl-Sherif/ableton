@@ -42,7 +42,7 @@ function Invoke-Step([string]$Label, [scriptblock]$Block) {
 if (-not $SkipBuild) {
     Invoke-Step "configure (Release, plugin=$($meta.slug))" {
         cmake -S . -B $BuildDir -DCMAKE_BUILD_TYPE=Release `
-            -DAA_PLUGINS=$($meta.slug) -DAA_LOCAL_BUILD=OFF -DAA_BUILD_TESTS=ON
+            "-DAA_PLUGINS=$($meta.slug)" -DAA_LOCAL_BUILD=OFF -DAA_BUILD_TESTS=ON
     }
     Invoke-Step "build $($meta.target)_VST3 + tests" {
         cmake --build $BuildDir --config Release --target "$($meta.target)_VST3" "$($meta.target)Tests" --parallel
