@@ -15,14 +15,16 @@ void drawSnowflake(juce::Graphics& g, juce::Point<float> centre, float radius, j
         const juce::Point<float> tip(centre.x + std::sin(a) * radius, centre.y - std::cos(a) * radius);
         flake.startNewSubPath(centre);
         flake.lineTo(tip);
-        const juce::Point<float> branch(centre.x + std::sin(a) * radius * 0.55f, centre.y - std::cos(a) * radius * 0.55f);
+        const juce::Point<float> branch(centre.x + std::sin(a) * radius * 0.55f,
+                                        centre.y - std::cos(a) * radius * 0.55f);
         flake.startNewSubPath(branch);
         flake.lineTo(branch.x + std::sin(a + 0.55f) * radius * 0.22f, branch.y - std::cos(a + 0.55f) * radius * 0.22f);
         flake.startNewSubPath(branch);
         flake.lineTo(branch.x + std::sin(a - 0.55f) * radius * 0.22f, branch.y - std::cos(a - 0.55f) * radius * 0.22f);
     }
     g.setColour(colour);
-    g.strokePath(flake, juce::PathStrokeType(radius * 0.12f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.strokePath(
+        flake, juce::PathStrokeType(radius * 0.12f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 } // namespace
 

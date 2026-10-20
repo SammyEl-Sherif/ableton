@@ -11,8 +11,8 @@
 namespace icepenguin
 {
 class IcePenguinEditor : public juce::AudioProcessorEditor,
-                           public juce::AudioProcessorValueTreeState::Listener,
-                           private juce::Timer
+                         public juce::AudioProcessorValueTreeState::Listener,
+                         private juce::Timer
 {
 public:
     static constexpr int kWidth = 860;
