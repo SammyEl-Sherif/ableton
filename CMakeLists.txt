@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(AnimalAudio VERSION 1.0.0 LANGUAGES C CXX
-    DESCRIPTION "Animal Audio - a series of VST3 plugins with juice")
+project(AnimalAudio VERSION 0.0.0 LANGUAGES C CXX
+    DESCRIPTION "Animal Audio monorepo (per-plugin semver in plugins/<name>/VERSION)")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

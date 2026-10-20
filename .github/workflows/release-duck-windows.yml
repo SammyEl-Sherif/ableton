@@ -1,5 +1,5 @@
+# Deprecated: use workflow "Release plugin" (plugin=duck, platform=win).
 # Manual Duck Windows release: build → test → zip → validate → optional Supabase upload.
-# Version comes from project(AnimalAudio VERSION …) in CMakeLists.txt — bump that before you ship.
 #
 # Repository secrets: docs/GITHUB_ACTIONS_SECRETS.md
 name: Release Duck (Windows)

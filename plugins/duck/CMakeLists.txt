@@ -16,8 +16,11 @@ target_include_directories(Duck PRIVATE Source)
 if(AA_BUILD_TESTS)
     # The standard shaper-plugin suites (shared/testing) run against Duck's own processor and editor.
     # Set AA_SCREENSHOT_DIR to also write the headless UI renders as PNGs.
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" _duck_version)
+    string(STRIP "${_duck_version}" _duck_version)
     add_executable(DuckTests tests/DuckTests.cpp ${DUCK_SOURCES})
     target_include_directories(DuckTests PRIVATE Source)
+    aa_attach_plugin_build_info(DuckTests "${_duck_version}")
     target_link_libraries(DuckTests PRIVATE
         animalaudio::testing
         juce::juce_recommended_config_flags
