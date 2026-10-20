@@ -38,6 +38,8 @@ jobs:
     # Mac .pkg pipeline is implemented for Duck; other plugins can add packaging later.
     if: inputs.platform == 'mac' && inputs.plugin == 'duck'
     runs-on: macos-14
+    # Typical run ~10-15 min; notarization can be slow, but a signing hang should not burn 6 h.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -90,7 +92,11 @@ jobs:
           security unlock-keychain -p actions build.keychain
           # Notarization can take many minutes; keep the keychain unlocked for productsign afterwards.
           security set-keychain-settings -lut 21600 build.keychain
-          security import /tmp/devid.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          # Both .p12 files carry the same private key; its ACL is fixed by the first import (the second one
+          # finds the key already present), so every tool that signs with it must be trusted here. A tool
+          # missing from the ACL hangs CI on an invisible keychain prompt.
+          security import /tmp/devid.p12 -k build.keychain -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/productbuild -T /usr/bin/security
           security import /tmp/devid-installer.p12 -k build.keychain -P "${INSTALLER_P12_PASSWORD:-$P12_PASSWORD}" \
             -T /usr/bin/productsign -T /usr/bin/productbuild -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
