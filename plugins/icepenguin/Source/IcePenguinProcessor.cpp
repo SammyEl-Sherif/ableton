@@ -23,19 +23,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             .withStringFromValueFunction([](float v, int) { return juce::String(juce::roundToInt(v * 100.0f)) + " %"; })
             .withValueFromStringFunction([](const juce::String& s) { return s.getFloatValue() * 0.01f; })));
 
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        ids::decay,
-        "Decay",
-        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f),
-        0.55f,
-        juce::AudioParameterFloatAttributes().withLabel("trim")));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(ids::decay, "Decay",
+                                                           juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.55f,
+                                                           juce::AudioParameterFloatAttributes().withLabel("trim")));
 
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        ids::tone,
-        "Tone",
-        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f),
-        0.48f,
-        juce::AudioParameterFloatAttributes().withLabel("damp")));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(ids::tone, "Tone",
+                                                           juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.48f,
+                                                           juce::AudioParameterFloatAttributes().withLabel("damp")));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ids::predelay, "Predelay", juce::NormalisableRange<float>(0.0f, 80.0f, 0.1f), 0.0f,
@@ -43,12 +37,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             .withStringFromValueFunction([](float v, int) { return juce::String(v, 1) + " ms"; })
             .withValueFromStringFunction([](const juce::String& s) { return s.getFloatValue(); })));
 
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        ids::size,
-        "Size",
-        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f),
-        0.5f,
-        juce::AudioParameterFloatAttributes().withLabel("room")));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(ids::size, "Size",
+                                                           juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f,
+                                                           juce::AudioParameterFloatAttributes().withLabel("room")));
 
     return layout;
 }
@@ -111,8 +102,8 @@ const juce::String IcePenguinProcessor::getProgramName(int index)
 void IcePenguinProcessor::pushParametersToEngine() noexcept
 {
     const int presetIndex = juce::roundToInt(presetParam->load());
-    const auto settings = settingsForPreset(
-        presetIndex, decayParam->load(), toneParam->load(), predelayParam->load(), sizeParam->load());
+    const auto settings =
+        settingsForPreset(presetIndex, decayParam->load(), toneParam->load(), predelayParam->load(), sizeParam->load());
     reverb.setSettings(settings);
     reverb.setMix(mixParam->load());
 }

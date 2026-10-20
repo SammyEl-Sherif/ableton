@@ -202,8 +202,8 @@ void IcePenguinEditor::resized()
     {
         const int row = i / cols;
         const int col = i % cols;
-        presetButtons[static_cast<std::size_t>(i)]->setBounds(
-            grid.getX() + col * (cellW + gap), grid.getY() + row * (cellH + gap), cellW, cellH);
+        presetButtons[static_cast<std::size_t>(i)]->setBounds(grid.getX() + col * (cellW + gap),
+                                                              grid.getY() + row * (cellH + gap), cellW, cellH);
     }
 }
 } // namespace icepenguin
