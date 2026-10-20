@@ -8,7 +8,7 @@ gh secret set SECRET_NAME -R SammyEl-Sherif/ableton
 
 (Paste the real value when prompted; nothing secret belongs in git.)
 
-## Supabase upload (macOS + Windows release workflows)
+## Supabase upload (**Release plugin** workflow, mac + win)
 
 | Secret | Value |
 | --- | --- |
@@ -16,7 +16,7 @@ gh secret set SECRET_NAME -R SammyEl-Sherif/ableton
 | `AA_SUPABASE_DB_PASSWORD` | Animal Audio project database password (`huivhdradgroykfvtclx`) |
 | `AA_WEB_REPO_GITHUB_TOKEN` | GitHub PAT with **read** on `SammyEl-Sherif/animal-audio-web` (private repo checkout in CI) |
 
-## macOS signing + notarization (**Release Duck (macOS)** only)
+## macOS signing + notarization (**Release plugin**, platform `mac`)
 
 | Secret | Value |
 | --- | --- |
