@@ -32,10 +32,7 @@ Zip includes `Duck.vst3`, `Install-Duck.ps1`, EULA, and third-party notices. Use
 
 ### GitHub Actions (recommended)
 
-1. In **ableton** → Settings → Secrets → Actions, set:
-   - `AA_SUPABASE_ACCESS_TOKEN` — [Supabase account token](https://supabase.com/dashboard/account/tokens)
-   - `AA_SUPABASE_DB_PASSWORD` — database password for `supabase link` in CI
-   - `AA_WEB_REPO_GITHUB_TOKEN` — (optional) PAT with read access to **animal-audio-web** if the default `GITHUB_TOKEN` cannot checkout that repo
+1. Set repository secrets (names are already created with placeholder values — replace each one): see [docs/GITHUB_ACTIONS_SECRETS.md](GITHUB_ACTIONS_SECRETS.md).
 
 2. Actions → **Release Duck (Windows)** → Run workflow → version `1.0.0`, upload **on**.
 
