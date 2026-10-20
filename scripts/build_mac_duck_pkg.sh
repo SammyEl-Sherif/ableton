@@ -46,12 +46,36 @@ cp "$repo_root/scripts/installers/mac/conclusion.html" "$resources/conclusion.ht
 sed "s/__VERSION__/${version}/g" "$repo_root/scripts/installers/mac/Distribution.xml" > "$work/Distribution.xml"
 
 component_pkg="$work/duck-component.pkg"
-echo "== pkgbuild (relocatable component)"
+component_plist="$work/components.plist"
+# Never relocatable: Installer must write to the VST3 folder hosts scan, not "upgrade" a Duck.vst3
+# with the same bundle ID found elsewhere on disk (downloads, build dirs).
+cat > "$component_plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+  <dict>
+    <key>RootRelativeBundlePath</key>
+    <string>Library/Audio/Plug-Ins/VST3/Duck.vst3</string>
+    <key>BundleIsRelocatable</key>
+    <false/>
+    <key>BundleIsVersionChecked</key>
+    <true/>
+    <key>BundleHasStrictIdentifier</key>
+    <true/>
+    <key>BundleOverwriteAction</key>
+    <string>upgrade</string>
+  </dict>
+</array>
+</plist>
+PLIST
+
+echo "== pkgbuild (component)"
 pkgbuild --root "$work/component-root" \
+  --component-plist "$component_plist" \
   --identifier "com.animalaudio.duck.vst3" \
   --version "$version" \
   --install-location "/" \
-  --relocatable \
   --scripts "$scripts_dir" \
   "$component_pkg"
 
