@@ -17,7 +17,7 @@ cd "$repo_root"
 # shellcheck source=lib/mac_signing_identities.sh
 source "$repo_root/scripts/lib/mac_signing_identities.sh"
 
-version="${AA_DUCK_VERSION:-1.0.0}"
+version="${AA_DUCK_VERSION:-$(python3 scripts/read_project_version.py)}"
 build_dir="${AA_BUILD_DIR:-build}"
 bundle_rel="plugins/duck/Duck_artefacts/Release/VST3/Duck.vst3"
 bundle="${build_dir}/${bundle_rel}"

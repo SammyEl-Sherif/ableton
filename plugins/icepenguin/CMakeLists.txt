@@ -21,5 +21,9 @@ if(AA_BUILD_TESTS)
         animalaudio::testing
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags)
+    # IceReverb embeds multi-MiB delay buffers; default MSVC 1 MiB stack overflows in Catch2 tests.
+    if(MSVC)
+        target_link_options(IcePenguinTests PRIVATE "LINKER:/STACK:8388608")
+    endif()
     catch_discover_tests(IcePenguinTests TEST_PREFIX "icepenguin." PROPERTIES RESOURCE_LOCK native_display)
 endif()

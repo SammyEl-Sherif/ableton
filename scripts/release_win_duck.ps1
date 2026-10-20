@@ -4,7 +4,7 @@
 #   .\scripts\release_win_duck.ps1 -Version 1.0.0 -Upload
 #   .\scripts\release_win_duck.ps1 -SkipBuild -SkipVerify   # package only
 param(
-    [string]$Version = $(if ($env:AA_DUCK_VERSION) { $env:AA_DUCK_VERSION } else { "1.0.0" }),
+    [string]$Version,
     [switch]$SkipVerify,
     [switch]$SkipBuild,
     [switch]$Upload,
@@ -14,6 +14,10 @@ param(
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $RepoRoot
+if (-not $Version) {
+    if ($env:AA_DUCK_VERSION) { $Version = $env:AA_DUCK_VERSION }
+    else { $Version = (python scripts/read_project_version.py).Trim() }
+}
 $env:AA_DUCK_VERSION = $Version
 
 function Invoke-Step([string]$Label, [scriptblock]$Block) {

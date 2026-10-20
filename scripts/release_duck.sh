@@ -8,7 +8,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
-version="${AA_DUCK_VERSION:-1.0.0}"
+version="${AA_DUCK_VERSION:-$(python3 scripts/read_project_version.py)}"
 skip_verify=0
 skip_upload=1
 validate_only=0

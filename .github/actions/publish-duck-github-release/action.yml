@@ -1,0 +1,22 @@
+name: Publish Duck GitHub Release
+description: Create or update GitHub Release v{version} and attach the given artifact paths.
+
+inputs:
+  version:
+    description: Semver without v prefix (from CMake project VERSION)
+    required: true
+  files:
+    description: Newline-separated artifact paths (passed to softprops/action-gh-release)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Publish GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ inputs.version }}
+        name: Duck ${{ inputs.version }}
+        generate_release_notes: true
+        fail_on_unmatched_files: true
+        files: ${{ inputs.files }}
