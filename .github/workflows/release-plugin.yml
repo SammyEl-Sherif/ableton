@@ -95,8 +95,14 @@ jobs:
             -T /usr/bin/productsign -T /usr/bin/productbuild -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
           rm -f /tmp/devid.p12 /tmp/devid-installer.p12
-          security find-identity -v build.keychain | grep -q "Developer ID Installer:" \
-            || { echo "Developer ID Installer identity not found after import."; exit 1; }
+          if ! security find-identity -v build.keychain | grep -q "Developer ID Installer:"; then
+            echo "::error::Developer ID Installer identity not found after import."
+            echo "Certificates in build.keychain:"
+            security find-certificate -a build.keychain | grep '"labl"' || true
+            echo "Identities (including invalid):"
+            security find-identity build.keychain || true
+            exit 1
+          fi
 
       - name: Write notary API key
         env:
