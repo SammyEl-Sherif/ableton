@@ -17,7 +17,7 @@ on:
         options:
           - mac
           - win
-        default: win
+        default: mac
       upload:
         description: Upload to Supabase after validation
         type: boolean
