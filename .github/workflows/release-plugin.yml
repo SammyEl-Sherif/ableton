@@ -15,7 +15,7 @@ on:
         options:
           - mac
           - win
-        default: win
+        default: mac
       upload:
         description: Upload to Supabase after validation
         type: boolean
@@ -35,6 +35,8 @@ jobs:
   release-mac:
     if: inputs.platform == 'mac'
     runs-on: macos-14
+    # Typical run ~10-15 min; notarization can be slow, but a signing hang should not burn 6 h.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,13 +96,23 @@ jobs:
           security unlock-keychain -p actions build.keychain
           # Notarization can take many minutes; keep the keychain unlocked for productsign afterwards.
           security set-keychain-settings -lut 21600 build.keychain
-          security import /tmp/devid.p12 -k build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          # Both .p12 files carry the same private key; its ACL is fixed by the first import (the second one
+          # finds the key already present), so every tool that signs with it must be trusted here. A tool
+          # missing from the ACL hangs CI on an invisible keychain prompt.
+          security import /tmp/devid.p12 -k build.keychain -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/productbuild -T /usr/bin/security
           security import /tmp/devid-installer.p12 -k build.keychain -P "${INSTALLER_P12_PASSWORD:-$P12_PASSWORD}" \
             -T /usr/bin/productsign -T /usr/bin/productbuild -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
           rm -f /tmp/devid.p12 /tmp/devid-installer.p12
-          security find-identity -v build.keychain | grep -q "Developer ID Installer:" \
-            || { echo "Developer ID Installer identity not found after import."; exit 1; }
+          if ! security find-identity -v build.keychain | grep -q "Developer ID Installer:"; then
+            echo "::error::Developer ID Installer identity not found after import."
+            echo "Certificates in build.keychain:"
+            security find-certificate -a build.keychain | grep '"labl"' || true
+            echo "Identities (including invalid):"
+            security find-identity build.keychain || true
+            exit 1
+          fi
 
       - name: Write notary API key
         env:

@@ -140,6 +140,13 @@ def main(argv: list[str] | None = None) -> int:
         content_type = "application/octet-stream"
 
     storage_dst = f"ss:///plugin-releases/{manifest.storage_path}"
+    # `storage cp` cannot overwrite (409 KeyAlreadyExists), and re-running a release for the same version
+    # must work (rebuilt/re-signed artifact). `storage rm` exits 0 when the object does not exist.
+    run(
+        ["npx", "supabase", "storage", "rm", "--experimental", "--linked", "--yes", storage_dst],
+        cwd=web_repo,
+        dry_run=args.dry_run,
+    )
     run(
         [
             "npx",
