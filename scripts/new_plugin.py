@@ -153,7 +153,8 @@ def main() -> None:
     print(f"  cmake --build build --target {name}_VST3")
     print(f"  ctest --test-dir build -R '^{folder}\\.'")
     print(f"  scripts/verify_plugin.sh {name}      # build + ctest + pluginval + screenshot")
-    print("  then: see .cursor/skills/vst/SKILL.md (DSP, animal motif, palette tuning, presets, docs)")
+    print("  then: see .cursor/skills/vst/SKILL.md (DSP, animal motif, palette tuning, presets, docs, release readiness)")
+    print(f"  after the PR is merged, a maintainer ships it with /release {folder} (no release-script changes needed)")
 
 
 if __name__ == "__main__":

@@ -66,15 +66,8 @@ def run(cmd: list[str], *, check: bool = True) -> subprocess.CompletedProcess[st
     return subprocess.run(cmd, text=True, capture_output=True, check=check)
 
 
-def eula_zip_name(info: PluginReleaseInfo) -> str:
-    if info.slug == "duck":
-        return "Animal-Audio-Duck-EULA.txt"
-    return "Animal-Audio-EULA.txt"
-
-
 def zip_required_entries(info: PluginReleaseInfo, platform_name: str) -> tuple[str, ...]:
-    eula = eula_zip_name(info)
-    base = (info.bundle_name, eula, "Third-Party-Notices.txt")
+    base = (info.bundle_name, info.eula_file_name, "Third-Party-Notices.txt")
     if platform_name == "win":
         return base + (f"Install-{info.product_name}.ps1",)
     return base

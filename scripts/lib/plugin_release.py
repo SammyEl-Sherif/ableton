@@ -34,6 +34,10 @@ class PluginReleaseInfo:
         return " ".join(_PASCAL_WORD.findall(self.product_name)) or self.product_name
 
     @property
+    def eula_file_name(self) -> str:
+        return f"Animal-Audio-{self.product_name}-EULA.txt"
+
+    @property
     def mac_pkg_identifier(self) -> str:
         return f"com.animalaudio.{self.slug}.vst3"
 

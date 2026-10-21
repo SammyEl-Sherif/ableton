@@ -19,6 +19,7 @@ print(json.dumps({
     'version': p.version,
     'product': p.product_name,
     'display': p.display_name,
+    'eula': p.eula_file_name,
     'bundle': p.bundle_name,
     'zip': p.win_zip_name(),
     'dist': str(p.release_root()).replace('\\', '/'),
@@ -36,7 +37,7 @@ if (-not (Test-Path $bundle)) {
     Write-Error "VST3 bundle not found: $bundle. Build Release target ${meta.product}_VST3 first."
 }
 
-$eulaName = if ($meta.slug -eq 'duck') { 'Animal-Audio-Duck-EULA.txt' } else { 'Animal-Audio-EULA.txt' }
+$eulaName = $meta.eula
 $installTemplate = Join-Path $PSScriptRoot "installers\win\Install-Plugin.ps1"
 if (-not (Test-Path $installTemplate)) {
     Write-Error "Missing Windows installer template: $installTemplate"

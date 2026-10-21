@@ -27,6 +27,7 @@ fields = {
     "ZIP_NAME": p.mac_zip_name(),
     "DIST_DIR": str(p.release_root()),
     "BUNDLE_REL": p.bundle_build_rel(),
+    "EULA_NAME": p.eula_file_name,
 }
 for k, v in fields.items():
     print(f"{k}={shlex.quote(v)}")
@@ -107,10 +108,7 @@ echo "Primary Mac release (upload this): $out_pkg"
 echo "Supabase Storage: ${SLUG}/${version}/${PKG_NAME}"
 
 if [ "${AA_BUILD_MAC_ZIP:-0}" = "1" ]; then
-  eula_name="Animal-Audio-Duck-EULA.txt"
-  if [ "$SLUG" != "duck" ]; then
-    eula_name="Animal-Audio-EULA.txt"
-  fi
+  eula_name="$EULA_NAME"
   cp docs/EULA.md "$work/${eula_name}"
   cp docs/THIRD_PARTY_NOTICES.md "$work/Third-Party-Notices.txt"
   out_zip="${dist_dir}/${ZIP_NAME}"
