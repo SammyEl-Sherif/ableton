@@ -12,6 +12,8 @@ Stack: **JUCE 8 + CMake (C++17)**, Catch2 for tests. VST3 only (Standalone optio
 | Plugin | Folder | CMake target | Plugin code |
 | --- | --- | --- | --- |
 | Duck (volume ducking / shaper) | `plugins/duck` | `Duck` (`Duck_VST3`), tests: `DuckTests` | `Duck` |
+| Turtle Time (half-time / time warp) | `plugins/turtletime` | `TurtleTime` (`TurtleTime_VST3`), tests: `TurtleTimeTests` | `Turt` |
+
 New plugins: use the **`/vst <name or idea>`** skill (see [Creating a plugin with `/vst`](#creating-a-plugin-with-vst)).
 
 ### Plugin lifecycle (clone to live on animal.audio)
@@ -55,6 +57,12 @@ plugins/duck/         only what is Duck-specific:
   Source/dsp/         DuckPresets (names for the standard shapes)
   Source/ui/          DuckTheme (palette, kThemeHue), DuckMotif (rubber duck, duck-head knob cap, feathers)
   tests/              DuckTests.cpp = the two shared suite macros
+plugins/turtletime/  half-time / time warp (own processor, not the curve shaper):
+  Source/             TurtleTimeProcessor, TurtleTimeEditor
+  Source/dsp/         TurtleTimeEngine (circular-buffer resample, 4-point cubic), TimePatterns
+  Source/ui/          TurtleTimeTheme (kThemeHue 147), TurtleTimeMotif (hex-shell mark, machined knob cap),
+                      TurtleTimeWidgets (TurtleKnob, PatternCell)
+  tests/              TurtleTimeTests.cpp
 templates/plugin/     starter copied by scripts/new_plugin.py (placeholders __NAME__, __NAME_LOWER__, __HUE__, ...)
 .cursor/skills/       the /setup, /vst and /release skills (canonical);  .claude/skills/ holds copies made by scripts/sync_skills.sh
 scripts/              new_plugin.py, install_plugins.py (+ tests/), verify_plugin.sh, release_plugin.sh / release_win_plugin.ps1 (any slug), build_mac_pkg.sh, installers/ (mac + win templates), validate/upload release helpers, format.sh, sync_skills.sh, check_repo.sh (docs/RELEASE.md)
@@ -222,6 +230,33 @@ The DSP/state/editor below is shared by every plugin built on `CurveShaperProces
 - UI (`ui::ShaperEditor`, 820x470): left: brand badge, NAME title + mascot, MIX knob (cap from the Motif), fallback-BPM
   slider. Right: division pills + sync status, curve editor, preset nav/flip/invert, 2x8 preset grid.
   Duck's `DuckMotif`: rubber duck mascot, duck head from above as knob cap (bill = pointer), feathers, pond ripples.
+
+## Turtle Time specifics
+
+Turtle Time is a tempo-synced time warp (half-time, reverse, beat repeat) with its own processor and editor,
+not the curve-shaper stack. The patterns follow a half-time / retrigger workflow; the DSP, names, and art
+are original.
+
+- DSP: `plugins/turtletime/Source/dsp/TurtleTimeEngine.h`. Input is written into a circular buffer at 1x.
+  A pattern plays that buffer back at a signed rate (0.5 = one octave down, -1 = reverse) with 4-point
+  cubic interpolation. On each musical window the read pointer snaps back to "now" (catch-up) or a captured
+  slice repeats, with a ~10 ms crossfade on the jump. The window locks to host PPQ only while the transport
+  is playing. Stopped, audio is passed dry (the buffer still records) and the UI phase parks on the host
+  playhead; playback resumes with a snap. There is no user BPM control. History is allocated in `prepare`
+  (32 seconds); `process` does not allocate. Input/output peaks per window phase go to the UI through two
+  `dsp::CycleScope`s (frozen while stopped).
+- Parameters (APVTS, version 1): `pattern` (32 choices, default `Half 1 Bar`), `mix` (default 100%).
+  Host programs mirror the pattern list. Mix moves are smoothed (15 ms).
+- Patterns are a 4×8 matrix, index = row * 8 + column. Rows: HALF (0.5x), SLOW (0.25x), REVERSE (-1x),
+  REPEAT (slice loop). Columns are the same musical lengths in every row: 1/32, 1/16, 1/8, 1/4, 3/8, 1/2,
+  1 bar, 2 bars (for REPEAT that is the slice; it loops across a bar, or twice its length from 1 bar up).
+  Program names are `Half 1/4`, `Reverse 1 Bar`, …
+- UI (`TurtleTimeEditor`, 940×528): header (hex-shell mark, TURTLE TIME / TIME WARP, brand badge); a recessed
+  display with the input (grey) and output (green) envelopes over the current window, beat grid, white NOW
+  line and amber READ head; a MIX panel (ticked knob, % readout, PLAYING/STOPPED + host BPM); the pattern
+  matrix with row labels and rectangular cells. Motion comes from the host playhead, not a wall clock.
+- Palette: graphite with a mint-green accent (`kThemeHue` 147°); amber only for the read head. Product name in
+  hosts: "Turtle Time"; VST3 bundle: `TurtleTime.vst3`.
 
 ## Branding
 
