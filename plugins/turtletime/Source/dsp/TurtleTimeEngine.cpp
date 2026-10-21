@@ -7,7 +7,8 @@ namespace turtletime::dsp
 {
 namespace
 {
-constexpr double kHistorySeconds = 24.0;
+// Reverse reads up to two windows back and Repeat 2 Bar up to four bars, so this covers 2-bar reverse at 30 BPM.
+constexpr double kHistorySeconds = 32.0;
 
 double wrapPosition(double position, double size) noexcept
 {
@@ -40,13 +41,30 @@ float catmullRom(float y0, float y1, float y2, float y3, float t) noexcept
                    (-y0 + 3.0f * y1 - 3.0f * y2 + y3) * t3);
 }
 
-double safeBpm(const animalaudio::dsp::TransportInfo& transport, double fallback) noexcept
+double hostBpm(const animalaudio::dsp::TransportInfo& transport) noexcept
 {
     if (transport.hasBpm && transport.bpm > 1.0 && std::isfinite(transport.bpm))
         return transport.bpm;
-    if (fallback > 1.0 && std::isfinite(fallback))
-        return fallback;
     return 120.0;
+}
+
+void markersFor(const TimePattern& pattern, double ppq, float& play, float& marker) noexcept
+{
+    const double windowBeats = pattern.windowBeats > 1.0e-6 ? pattern.windowBeats : 1.0;
+    const double safe = std::isfinite(ppq) ? ppq : 0.0;
+    const double windowStart = std::floor(safe / windowBeats) * windowBeats;
+    const double into = std::clamp(safe - windowStart, 0.0, windowBeats);
+    play = static_cast<float>(into / windowBeats);
+    if (pattern.mode == TimeMode::CatchUp)
+    {
+        marker = pattern.rate >= 0.0f ? std::clamp(pattern.rate * play, 0.0f, 1.0f)
+                                      : std::clamp(1.0f + pattern.rate * play, 0.0f, 1.0f);
+    }
+    else
+    {
+        const double slice = pattern.sliceBeats > 1.0e-6 ? pattern.sliceBeats : windowBeats;
+        marker = static_cast<float>(std::fmod(into, slice) / windowBeats);
+    }
 }
 } // namespace
 
@@ -71,15 +89,17 @@ void TurtleTimeEngine::reset() noexcept
     fadeRate = activeRate;
     fadeRemaining = 0;
     fadeSpanSamples = 1;
-    ppqClock = 0.0;
     lastWindow = 0;
     lastSlice = -1;
     anchorPos = 0.0;
     primed = false;
     patternDirty = false;
+    holding = false;
     playheadPhase.store(0.0f, std::memory_order_relaxed);
     readMarker.store(0.0f, std::memory_order_relaxed);
     hostSynced.store(0, std::memory_order_relaxed);
+    inputScope.clear();
+    outputScope.clear();
 }
 
 void TurtleTimeEngine::setPatternIndex(int index) noexcept
@@ -99,12 +119,6 @@ void TurtleTimeEngine::setMix(float newMix) noexcept
 {
     mix = std::clamp(newMix, 0.0f, 1.0f);
     mixSmoother.setTarget(mix);
-}
-
-void TurtleTimeEngine::setFallbackBpm(double bpm) noexcept
-{
-    if (bpm > 1.0 && std::isfinite(bpm))
-        fallbackBpm = bpm;
 }
 
 void TurtleTimeEngine::startFade(double fromPosition, float fromRate, int span) noexcept
@@ -146,17 +160,53 @@ void TurtleTimeEngine::process(float* const* channels, int numChannels, int numS
 
     const int count = std::min(numChannels, kMaxChannels);
     const TimePattern pattern = patternAt(patternIndex);
-    const double bpm = safeBpm(transport, fallbackBpm);
-    const double beatsPerSample = bpm / (60.0 * sampleRate);
     const bool host = transport.playing && transport.hasPpq && std::isfinite(transport.ppq);
     hostSynced.store(host ? 1 : 0, std::memory_order_relaxed);
+    const bool bpmKnown = transport.hasBpm && transport.bpm > 1.0 && std::isfinite(transport.bpm);
+    hostBpmSeen.store(bpmKnown ? transport.bpm : 0.0, std::memory_order_relaxed);
 
-    const double blockStart = host ? transport.ppq : ppqClock;
+    if (!host)
+    {
+        holding = true;
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            for (int ch = 0; ch < count; ++ch)
+                buffer[static_cast<std::size_t>(ch * capacity + writeIndex)] = channels[ch][sample];
+            writeIndex = wrapIndex(writeIndex + 1, capacity);
+            mixSmoother.next();
+        }
+        if (transport.hasPpq && std::isfinite(transport.ppq))
+        {
+            float play = 0.0f;
+            float marker = 0.0f;
+            markersFor(pattern, transport.ppq, play, marker);
+            (void)marker;
+            playheadPhase.store(std::clamp(play, 0.0f, 1.0f), std::memory_order_relaxed);
+            readMarker.store(std::clamp(play, 0.0f, 1.0f), std::memory_order_relaxed);
+        }
+        return;
+    }
+
+    if (holding)
+    {
+        patternDirty = true;
+        holding = false;
+    }
+
+    const double bpm = hostBpm(transport);
+    const double beatsPerSample = bpm / (60.0 * sampleRate);
+    const double blockStart = transport.ppq;
     const double windowBeats = pattern.windowBeats > 1.0e-6 ? pattern.windowBeats : 1.0;
     const int fadeSpan = fadeSamplesFor(pattern, bpm);
 
     float lastPlay = 0.0f;
     float lastMarker = 0.0f;
+
+    if (patternDirty)
+    {
+        inputScope.clear();
+        outputScope.clear();
+    }
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -207,6 +257,8 @@ void TurtleTimeEngine::process(float* const* channels, int numChannels, int numS
         const float fadeT =
             fading ? 1.0f - static_cast<float>(fadeRemaining) / static_cast<float>(fadeSpanSamples) : 1.0f;
 
+        float inPeak = 0.0f;
+        float outPeak = 0.0f;
         for (int ch = 0; ch < count; ++ch)
         {
             float wet = readCubic(ch, readPos);
@@ -214,7 +266,10 @@ void TurtleTimeEngine::process(float* const* channels, int numChannels, int numS
                 wet = readCubic(ch, fadeReadPos) * (1.0f - fadeT) + wet * fadeT;
 
             const float dry = channels[ch][sample];
-            channels[ch][sample] = dry + (wet - dry) * mixNow;
+            const float out = dry + (wet - dry) * mixNow;
+            channels[ch][sample] = out;
+            inPeak = std::max(inPeak, std::abs(dry));
+            outPeak = std::max(outPeak, std::abs(out));
         }
 
         writeIndex = wrapIndex(writeIndex + 1, capacity);
@@ -225,20 +280,11 @@ void TurtleTimeEngine::process(float* const* channels, int numChannels, int numS
             --fadeRemaining;
         }
 
-        lastPlay = static_cast<float>(into / windowBeats);
-        if (pattern.mode == TimeMode::CatchUp)
-        {
-            lastMarker = pattern.rate >= 0.0f ? std::clamp(pattern.rate * lastPlay, 0.0f, 1.0f)
-                                              : std::clamp(1.0f + pattern.rate * lastPlay, 0.0f, 1.0f);
-        }
-        else
-        {
-            const double slice = pattern.sliceBeats > 1.0e-6 ? pattern.sliceBeats : windowBeats;
-            lastMarker = static_cast<float>(std::fmod(into, slice) / windowBeats);
-        }
+        markersFor(pattern, ppq, lastPlay, lastMarker);
+        inputScope.push(static_cast<double>(lastPlay), inPeak);
+        outputScope.push(static_cast<double>(lastPlay), outPeak);
     }
 
-    ppqClock = blockStart + static_cast<double>(numSamples) * beatsPerSample;
     playheadPhase.store(std::clamp(lastPlay, 0.0f, 1.0f), std::memory_order_relaxed);
     readMarker.store(std::clamp(lastMarker, 0.0f, 1.0f), std::memory_order_relaxed);
 }

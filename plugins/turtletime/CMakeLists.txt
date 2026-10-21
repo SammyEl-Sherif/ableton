@@ -3,7 +3,8 @@ set(TURTLETIME_SOURCES
     Source/TurtleTimeProcessor.cpp
     Source/dsp/TurtleTimeEngine.cpp
     Source/ui/TurtleTimeTheme.cpp
-    Source/ui/TurtleTimeMotif.cpp)
+    Source/ui/TurtleTimeMotif.cpp
+    Source/ui/TurtleTimeWidgets.cpp)
 
 aa_add_plugin(TurtleTime
     PRODUCT_NAME "TurtleTime"

@@ -18,7 +18,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     for (const auto& pattern : dsp::kPatterns)
         patternNames.add(juce::String(pattern.name.data(), pattern.name.size()));
 
-    layout.add(std::make_unique<juce::AudioParameterChoice>(ids::pattern, "Pattern", patternNames, 0));
+    layout.add(
+        std::make_unique<juce::AudioParameterChoice>(ids::pattern, "Pattern", patternNames, dsp::kDefaultPattern));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ids::mix, "Mix", juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 1.0f,
@@ -26,12 +27,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
             .withStringFromValueFunction([](float value, int)
                                          { return juce::String(juce::roundToInt(value * 100.0f)) + " %"; })
             .withValueFromStringFunction([](const juce::String& text) { return text.getFloatValue() * 0.01f; })));
-
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        ids::fallbackBpm, "Fallback BPM", juce::NormalisableRange<float>(40.0f, 240.0f, 0.1f), 120.0f,
-        juce::AudioParameterFloatAttributes()
-            .withStringFromValueFunction([](float value, int) { return juce::String(value, 1) + " BPM"; })
-            .withValueFromStringFunction([](const juce::String& text) { return text.getFloatValue(); })));
 
     return layout;
 }
@@ -45,7 +40,6 @@ TurtleTimeProcessor::TurtleTimeProcessor()
 {
     patternParam = apvts.getRawParameterValue(ids::pattern.getParamID());
     mixParam = apvts.getRawParameterValue(ids::mix.getParamID());
-    fallbackBpmParam = apvts.getRawParameterValue(ids::fallbackBpm.getParamID());
 }
 
 bool TurtleTimeProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -60,7 +54,6 @@ void TurtleTimeProcessor::pushParameters() noexcept
 {
     engine.setPatternIndex(juce::roundToInt(patternParam->load()));
     engine.setMix(mixParam->load());
-    engine.setFallbackBpm(static_cast<double>(fallbackBpmParam->load()));
 }
 
 void TurtleTimeProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)

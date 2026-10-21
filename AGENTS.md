@@ -60,7 +60,8 @@ plugins/duck/         only what is Duck-specific:
 plugins/turtletime/  half-time / time warp (own processor, not the curve shaper):
   Source/             TurtleTimeProcessor, TurtleTimeEditor
   Source/dsp/         TurtleTimeEngine (circular-buffer resample, 4-point cubic), TimePatterns
-  Source/ui/          TurtleTimeTheme (kThemeHue 147), TurtleTimeMotif (turtle, shell knob cap, lily pads)
+  Source/ui/          TurtleTimeTheme (kThemeHue 147), TurtleTimeMotif (hex-shell mark, machined knob cap),
+                      TurtleTimeWidgets (TurtleKnob, PatternCell)
   tests/              TurtleTimeTests.cpp
 templates/plugin/     starter copied by scripts/new_plugin.py (placeholders __NAME__, __NAME_LOWER__, __HUE__, ...)
 .cursor/skills/       the /setup, /vst and /release skills (canonical);  .claude/skills/ holds copies made by scripts/sync_skills.sh
@@ -239,18 +240,23 @@ are original.
 - DSP: `plugins/turtletime/Source/dsp/TurtleTimeEngine.h`. Input is written into a circular buffer at 1x.
   A pattern plays that buffer back at a signed rate (0.5 = one octave down, -1 = reverse) with 4-point
   cubic interpolation. On each musical window the read pointer snaps back to "now" (catch-up) or a captured
-  slice repeats, with a ~10 ms crossfade on the jump. The window locks to host PPQ while the transport is
-  playing and free-runs at the host BPM or `fallbackBpm` otherwise. History is allocated in `prepare`
-  (24 seconds); `process` does not allocate.
-- Parameters (APVTS, version 1): `pattern` (8 choices), `mix` (default 100%), `fallbackBpm`. Host programs
-  mirror the pattern list. Mix moves are smoothed (15 ms).
-- Patterns: Shell (half-time, 1 bar), Paddle (half-time, 1/2), Nap (half-time, 2 bars), Hatch (half-time, 1/4),
-  Reverse (1 bar backwards), Drift (half-speed reverse, 1 bar), Tap (1/8 repeat), Skitter (1/16 repeat).
-- UI (`TurtleTimeEditor`, 900×540): left — brand badge, TURTLE TIME, mascot, MIX and BPM knobs. Right — a lane
-  with the playhead and a turtle at the read position, plus a 2×4 pattern grid. `TurtleTimeMotif`: side-view
-  turtle, shell knob cap (head is the pointer), lily pads.
-- Palette: swamp green (`kThemeHue` 147°), shell amber `#E2A15A`. Product name in hosts: "Turtle Time";
-  VST3 bundle: `TurtleTime.vst3`.
+  slice repeats, with a ~10 ms crossfade on the jump. The window locks to host PPQ only while the transport
+  is playing. Stopped, audio is passed dry (the buffer still records) and the UI phase parks on the host
+  playhead; playback resumes with a snap. There is no user BPM control. History is allocated in `prepare`
+  (32 seconds); `process` does not allocate. Input/output peaks per window phase go to the UI through two
+  `dsp::CycleScope`s (frozen while stopped).
+- Parameters (APVTS, version 1): `pattern` (32 choices, default `Half 1 Bar`), `mix` (default 100%).
+  Host programs mirror the pattern list. Mix moves are smoothed (15 ms).
+- Patterns are a 4×8 matrix, index = row * 8 + column. Rows: HALF (0.5x), SLOW (0.25x), REVERSE (-1x),
+  REPEAT (slice loop). Columns are the same musical lengths in every row: 1/32, 1/16, 1/8, 1/4, 3/8, 1/2,
+  1 bar, 2 bars (for REPEAT that is the slice; it loops across a bar, or twice its length from 1 bar up).
+  Program names are `Half 1/4`, `Reverse 1 Bar`, …
+- UI (`TurtleTimeEditor`, 940×528): header (hex-shell mark, TURTLE TIME / TIME WARP, brand badge); a recessed
+  display with the input (grey) and output (green) envelopes over the current window, beat grid, white NOW
+  line and amber READ head; a MIX panel (ticked knob, % readout, PLAYING/STOPPED + host BPM); the pattern
+  matrix with row labels and rectangular cells. Motion comes from the host playhead, not a wall clock.
+- Palette: graphite with a mint-green accent (`kThemeHue` 147°); amber only for the read head. Product name in
+  hosts: "Turtle Time"; VST3 bundle: `TurtleTime.vst3`.
 
 ## Branding
 

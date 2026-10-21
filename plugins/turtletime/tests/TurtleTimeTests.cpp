@@ -47,8 +47,6 @@ std::vector<float> render(turtletime::dsp::TurtleTimeEngine& engine, const std::
         animalaudio::dsp::TransportInfo transport;
         if (host)
             transport = playingAt(bpm, static_cast<double>(done) * beatsPerSample);
-        else
-            engine.setFallbackBpm(bpm);
         engine.process(channels, 1, count, transport);
         std::copy(block.begin(), block.end(), output.begin() + done);
         done += count;
@@ -60,8 +58,20 @@ void prepareEngine(turtletime::dsp::TurtleTimeEngine& engine, int pattern, float
 {
     engine.setPatternIndex(pattern);
     engine.setMix(mix);
-    engine.setFallbackBpm(120.0);
     engine.prepare(kSampleRate, 512);
+}
+
+int patternWhere(float rate, double window, turtletime::dsp::TimeMode mode, double slice = 0.0)
+{
+    for (int i = 0; i < turtletime::dsp::kNumPatterns; ++i)
+    {
+        const auto& pattern = turtletime::dsp::kPatterns[static_cast<std::size_t>(i)];
+        if (pattern.mode == mode && std::abs(pattern.rate - rate) < 1.0e-4f &&
+            std::abs(pattern.windowBeats - window) < 1.0e-6 && std::abs(pattern.sliceBeats - slice) < 1.0e-6)
+            return i;
+    }
+    FAIL("pattern not found");
+    return 0;
 }
 } // namespace
 
@@ -71,19 +81,26 @@ TEST_CASE("turtletime: parameters exist")
     REQUIRE(processor.getName() == "Turtle Time");
     REQUIRE(processor.apvts.getParameter("pattern") != nullptr);
     REQUIRE(processor.apvts.getParameter("mix") != nullptr);
-    REQUIRE(processor.apvts.getParameter("fallbackBpm") != nullptr);
+    REQUIRE(processor.apvts.getParameter("fallbackBpm") == nullptr);
     REQUIRE(processor.getNumPrograms() == turtletime::dsp::kNumPatterns);
+    REQUIRE(processor.getCurrentProgram() == turtletime::dsp::kDefaultPattern);
 }
 
 TEST_CASE("turtletime: patterns are named")
 {
+    REQUIRE(turtletime::dsp::kNumPatterns == 32);
     REQUIRE(static_cast<int>(turtletime::dsp::kPatterns.size()) == turtletime::dsp::kNumPatterns);
-    for (const auto& pattern : turtletime::dsp::kPatterns)
+    for (int i = 0; i < turtletime::dsp::kNumPatterns; ++i)
     {
+        const auto& pattern = turtletime::dsp::kPatterns[static_cast<std::size_t>(i)];
         REQUIRE(pattern.name.size() > 2);
         REQUIRE(pattern.blurb.size() > 8);
         REQUIRE(pattern.windowBeats > 0.0);
         REQUIRE(std::isfinite(pattern.rate));
+        if (pattern.mode == turtletime::dsp::TimeMode::Repeat)
+            REQUIRE(pattern.sliceBeats > 0.0);
+        for (int j = i + 1; j < turtletime::dsp::kNumPatterns; ++j)
+            REQUIRE(pattern.name != turtletime::dsp::kPatterns[static_cast<std::size_t>(j)].name);
     }
 }
 
@@ -95,24 +112,22 @@ TEST_CASE("turtletime: state round trip")
         processor.apvts.getParameter("pattern")->setValueNotifyingHost(
             processor.apvts.getParameter("pattern")->convertTo0to1(3.0f));
         processor.apvts.getParameter("mix")->setValueNotifyingHost(0.25f);
-        processor.apvts.getParameter("fallbackBpm")
-            ->setValueNotifyingHost(processor.apvts.getParameter("fallbackBpm")->convertTo0to1(96.0f));
         processor.getStateInformation(saved);
     }
 
     turtletime::TurtleTimeProcessor restored;
     restored.setStateInformation(saved.getData(), static_cast<int>(saved.getSize()));
     REQUIRE(restored.apvts.getRawParameterValue("mix")->load() == Approx(0.25f).margin(0.01f));
-    REQUIRE(restored.apvts.getRawParameterValue("fallbackBpm")->load() == Approx(96.0f).margin(0.2f));
     REQUIRE(restored.getCurrentProgram() == 3);
+    REQUIRE(restored.getProgramName(3) == "Half 1/4");
 }
 
 TEST_CASE("turtletime: programs select patterns")
 {
     turtletime::TurtleTimeProcessor processor;
-    processor.setCurrentProgram(5);
-    REQUIRE(processor.getCurrentProgram() == 5);
-    REQUIRE(processor.getProgramName(5) == "Drift");
+    processor.setCurrentProgram(turtletime::dsp::kDefaultPattern);
+    REQUIRE(processor.getCurrentProgram() == turtletime::dsp::kDefaultPattern);
+    REQUIRE(processor.getProgramName(turtletime::dsp::kDefaultPattern) == "Half 1 Bar");
 }
 
 TEST_CASE("turtletime: mix zero stays dry")
@@ -140,7 +155,7 @@ TEST_CASE("turtletime: mix zero stays dry")
 TEST_CASE("turtletime: half speed reads the ramp at half rate")
 {
     turtletime::dsp::TurtleTimeEngine engine;
-    prepareEngine(engine, 3, 1.0f); // Hatch: 0.5x, one beat
+    prepareEngine(engine, patternWhere(0.5f, 1.0, turtletime::dsp::TimeMode::CatchUp), 1.0f);
     constexpr double bpm = 240.0;
     constexpr int count = 4000;
     std::vector<float> input(static_cast<std::size_t>(count));
@@ -155,7 +170,7 @@ TEST_CASE("turtletime: half speed reads the ramp at half rate")
 TEST_CASE("turtletime: half speed drops a sine one octave")
 {
     turtletime::dsp::TurtleTimeEngine engine;
-    prepareEngine(engine, 3, 1.0f);
+    prepareEngine(engine, patternWhere(0.5f, 1.0, turtletime::dsp::TimeMode::CatchUp), 1.0f);
     constexpr double bpm = 240.0;
     constexpr int count = 12000;
     constexpr float frequency = 960.0f;
@@ -177,7 +192,7 @@ TEST_CASE("turtletime: half speed drops a sine one octave")
 TEST_CASE("turtletime: reverse plays the previous window backwards")
 {
     turtletime::dsp::TurtleTimeEngine engine;
-    prepareEngine(engine, 4, 1.0f); // Reverse: -1x, one bar
+    prepareEngine(engine, patternWhere(-1.0f, 4.0, turtletime::dsp::TimeMode::CatchUp), 1.0f);
     constexpr double bpm = 240.0;
     constexpr int window = 48000;
     std::vector<float> input(static_cast<std::size_t>(window * 2));
@@ -193,8 +208,8 @@ TEST_CASE("turtletime: reverse plays the previous window backwards")
 TEST_CASE("turtletime: repeat retriggers inside the block")
 {
     turtletime::dsp::TurtleTimeEngine engine;
-    prepareEngine(engine, 6, 1.0f); // Tap: 1/8 note slice
-    constexpr double bpm = 1440.0;  // 0.5 beats == 1000 samples
+    prepareEngine(engine, patternWhere(1.0f, 4.0, turtletime::dsp::TimeMode::Repeat, 0.5), 1.0f);
+    constexpr double bpm = 1440.0; // 0.5 beats == 1000 samples
     constexpr int count = 3000;
     std::vector<float> input(static_cast<std::size_t>(count), -0.8f);
     for (int i = 0; i < 1000; ++i)
@@ -209,7 +224,7 @@ TEST_CASE("turtletime: repeat retriggers inside the block")
 TEST_CASE("turtletime: jumps stay click-free")
 {
     turtletime::dsp::TurtleTimeEngine engine;
-    prepareEngine(engine, 3, 1.0f);
+    prepareEngine(engine, patternWhere(0.5f, 1.0, turtletime::dsp::TimeMode::CatchUp), 1.0f);
     constexpr double bpm = 240.0;
     constexpr int count = 24000; // two 1-beat windows, so the snap is included
     std::vector<float> input(static_cast<std::size_t>(count));
@@ -237,30 +252,53 @@ TEST_CASE("turtletime: block size does not change the render")
 
     turtletime::dsp::TurtleTimeEngine fine;
     turtletime::dsp::TurtleTimeEngine coarse;
-    prepareEngine(fine, 3, 1.0f);
-    prepareEngine(coarse, 3, 1.0f);
+    const int pattern = patternWhere(0.5f, 1.0, turtletime::dsp::TimeMode::CatchUp);
+    prepareEngine(fine, pattern, 1.0f);
+    prepareEngine(coarse, pattern, 1.0f);
     const auto a = render(fine, input, bpm, 1, true);
     const auto b = render(coarse, input, bpm, 173, true);
     for (int i = 0; i < count; i += 10)
         REQUIRE(a[static_cast<std::size_t>(i)] == Approx(b[static_cast<std::size_t>(i)]).margin(0.02f));
 }
 
-TEST_CASE("turtletime: free run matches a host at the fallback tempo")
+TEST_CASE("turtletime: stopped transport stays dry and parks on the playhead")
 {
-    constexpr double bpm = 240.0;
-    constexpr int count = 6000;
+    turtletime::dsp::TurtleTimeEngine engine;
+    prepareEngine(engine, turtletime::dsp::kDefaultPattern, 1.0f);
+
+    constexpr int count = 512;
     std::vector<float> input(static_cast<std::size_t>(count));
     for (int i = 0; i < count; ++i)
-        input[static_cast<std::size_t>(i)] = 0.0002f * static_cast<float>(i);
+        input[static_cast<std::size_t>(i)] = 0.001f * static_cast<float>(i);
 
-    turtletime::dsp::TurtleTimeEngine host;
-    turtletime::dsp::TurtleTimeEngine freeRun;
-    prepareEngine(host, 3, 1.0f);
-    prepareEngine(freeRun, 3, 1.0f);
-    const auto a = render(host, input, bpm, 128, true);
-    const auto b = render(freeRun, input, bpm, 128, false);
-    for (int i = 0; i < count; i += 8)
-        REQUIRE(a[static_cast<std::size_t>(i)] == Approx(b[static_cast<std::size_t>(i)]).margin(1.0e-4f));
+    auto stopped = input;
+    float* channels[] = {stopped.data()};
+    animalaudio::dsp::TransportInfo transport;
+    transport.playing = false;
+    transport.hasBpm = true;
+    transport.bpm = 96.0;
+    transport.hasPpq = true;
+    transport.ppq = 1.0;
+    engine.process(channels, 1, count, transport);
+
+    for (int i = 0; i < count; ++i)
+        REQUIRE(stopped[static_cast<std::size_t>(i)] == Approx(input[static_cast<std::size_t>(i)]).margin(0.0f));
+    REQUIRE_FALSE(engine.isHostSynced());
+    REQUIRE(engine.getPlayheadPhase() == Approx(0.25f).margin(1.0e-4f));
+    REQUIRE(engine.getReadMarker() == Approx(engine.getPlayheadPhase()).margin(1.0e-4f));
+
+    transport.ppq = 2.0;
+    stopped = input;
+    engine.process(channels, 1, count, transport);
+    REQUIRE(engine.getPlayheadPhase() == Approx(0.5f).margin(1.0e-4f));
+    REQUIRE(stopped[100] == Approx(input[100]).margin(0.0f));
+
+    transport.playing = true;
+    transport.ppq = 0.0;
+    engine.process(channels, 1, count, transport);
+    REQUIRE(engine.isHostSynced());
+    for (float sample : stopped)
+        REQUIRE(std::isfinite(sample));
 }
 
 TEST_CASE("turtletime: output stays finite")
@@ -301,16 +339,26 @@ TEST_CASE("turtletime: editor renders headlessly")
     juce::MidiBuffer midi;
     double ppq = 0.0;
     const double beatsPerSample = 120.0 / (60.0 * kSampleRate);
-    for (int block = 0; block < 40; ++block)
+    constexpr int beat = 24000; // 120 BPM at 48 kHz
+    unsigned noise = 7u;
+    for (int block = 0; block < 4 * beat * 7 / 8 / 512; ++block)
     {
         position.setPpqPosition(ppq);
         playHead.position = position;
         juce::AudioBuffer<float> buffer(2, 512);
         for (int i = 0; i < 512; ++i)
         {
-            const float sample = 0.4f * std::sin(static_cast<float>(i + block * 512) * 0.03f);
-            buffer.setSample(0, i, sample);
-            buffer.setSample(1, i, sample * 0.8f);
+            // A small drum loop: a kick on every beat and a hat on every 1/8, so the display has shape.
+            const int n = i + block * 512;
+            const float kickT = static_cast<float>(n % beat) / static_cast<float>(kSampleRate);
+            const float kick =
+                0.9f * std::exp(-kickT * 9.0f) *
+                std::sin(2.0f * juce::MathConstants<float>::pi * 52.0f * kickT * (1.0f + std::exp(-kickT * 30.0f)));
+            noise = noise * 1664525u + 1013904223u;
+            const float white = static_cast<float>(static_cast<int>(noise >> 9) % 2000 - 1000) / 1000.0f;
+            const float hat = 0.35f * white * std::exp(-static_cast<float>(n % (beat / 2)) / 900.0f);
+            buffer.setSample(0, i, kick + hat);
+            buffer.setSample(1, i, kick + hat * 0.8f);
         }
         processor.processBlock(buffer, midi);
         ppq += beatsPerSample * 512.0;

@@ -10,7 +10,6 @@ namespace ids
 {
 inline const juce::ParameterID pattern{"pattern", 1};
 inline const juce::ParameterID mix{"mix", 1};
-inline const juce::ParameterID fallbackBpm{"fallbackBpm", 1};
 } // namespace ids
 
 class TurtleTimeProcessor : public juce::AudioProcessor
@@ -46,6 +45,7 @@ public:
     float getPlayheadPhase() const noexcept { return engine.getPlayheadPhase(); }
     float getReadMarker() const noexcept { return engine.getReadMarker(); }
     bool isHostSynced() const noexcept { return engine.isHostSynced(); }
+    const dsp::TurtleTimeEngine& getEngine() const noexcept { return engine; }
 
 private:
     void pushParameters() noexcept;
@@ -53,7 +53,6 @@ private:
     dsp::TurtleTimeEngine engine;
     std::atomic<float>* patternParam = nullptr;
     std::atomic<float>* mixParam = nullptr;
-    std::atomic<float>* fallbackBpmParam = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TurtleTimeProcessor)
 };
