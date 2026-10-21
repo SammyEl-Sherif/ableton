@@ -3,7 +3,7 @@
 #
 #   ./scripts/release_mac_plugin.sh duck
 #
-# Duck: primary artifact is a notarized .pkg (see build_mac_duck_pkg.sh).
+# Primary artifact for every plugin is a notarized .pkg (see build_mac_pkg.sh).
 # Optional: AA_BUILD_MAC_ZIP=1 for a legacy zip alongside the pkg.
 set -euo pipefail
 plugin="${1:?usage: release_mac_plugin.sh <slug> (e.g. duck)}"
@@ -27,10 +27,10 @@ fields = {
     "ZIP_NAME": p.mac_zip_name(),
     "DIST_DIR": str(p.release_root()),
     "BUNDLE_REL": p.bundle_build_rel(),
+    "EULA_NAME": p.eula_file_name,
 }
 for k, v in fields.items():
     print(f"{k}={shlex.quote(v)}")
-print(f"SUPPORTS_PKG={'1' if p.supports_mac_pkg else '0'}")
 PY
 )"
 
@@ -100,20 +100,15 @@ spctl -a -vv -t install "$bundle"
 
 mkdir -p "$dist_dir"
 
-if [ "$SUPPORTS_PKG" = "1" ]; then
-  echo "== macOS .pkg installer (primary Mac download)"
-  scripts/build_mac_duck_pkg.sh "$bundle" "$version" "$dist_dir"
-  out_pkg="${dist_dir}/${PKG_NAME}"
-  echo ""
-  echo "Primary Mac release (upload this): $out_pkg"
-  echo "Supabase Storage: ${SLUG}/${version}/${PKG_NAME}"
-fi
+echo "== macOS .pkg installer (primary Mac download)"
+scripts/build_mac_pkg.sh "$SLUG" "$bundle" "$version" "$dist_dir"
+out_pkg="${dist_dir}/${PKG_NAME}"
+echo ""
+echo "Primary Mac release (upload this): $out_pkg"
+echo "Supabase Storage: ${SLUG}/${version}/${PKG_NAME}"
 
-if [ "${AA_BUILD_MAC_ZIP:-0}" = "1" ] || [ "$SUPPORTS_PKG" != "1" ]; then
-  eula_name="Animal-Audio-Duck-EULA.txt"
-  if [ "$SLUG" != "duck" ]; then
-    eula_name="Animal-Audio-EULA.txt"
-  fi
+if [ "${AA_BUILD_MAC_ZIP:-0}" = "1" ]; then
+  eula_name="$EULA_NAME"
   cp docs/EULA.md "$work/${eula_name}"
   cp docs/THIRD_PARTY_NOTICES.md "$work/Third-Party-Notices.txt"
   out_zip="${dist_dir}/${ZIP_NAME}"

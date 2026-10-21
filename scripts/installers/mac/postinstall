@@ -2,7 +2,7 @@
 # $2 = install target mount point (e.g. / or /Users/you)
 set -e
 target="${2:-/}"
-bundle="${target}/Library/Audio/Plug-Ins/VST3/Duck.vst3"
+bundle="${target}/Library/Audio/Plug-Ins/VST3/__BUNDLE__"
 if [ -d "$bundle" ]; then
   xattr -dr com.apple.quarantine "$bundle" 2>/dev/null || true
 fi
@@ -10,7 +10,7 @@ fi
 console_user="$(stat -f%Su /dev/console 2>/dev/null || true)"
 if [ -n "$console_user" ] && [ "$console_user" != "root" ]; then
   uid="$(id -u "$console_user" 2>/dev/null || true)"
-  msg='display alert "Duck installed" message "Open Ableton Live → Preferences → Plug-ins, enable Use VST3 Plug-In System Folders, then Rescan (hold Option for a full rescan)."'
+  msg='display alert "__DISPLAY_NAME__ installed" message "Open Ableton Live → Preferences → Plug-ins, enable Use VST3 Plug-In System Folders, then Rescan (hold Option for a full rescan)."'
   if [ -n "$uid" ] && command -v launchctl >/dev/null; then
     launchctl asuser "$uid" osascript -e "$msg" 2>/dev/null || sudo -u "$console_user" osascript -e "$msg" 2>/dev/null || true
   else

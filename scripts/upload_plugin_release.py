@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Upload a validated plugin release to Supabase Storage and update plugin_releases.
+"""Upload a validated plugin release to Supabase Storage and publish it in plugin_releases.
 
     python3 scripts/upload_plugin_release.py --manifest dist/releases/duck/1.0.0/manifest-mac.json
+
+The active row for (plugin_slug, platform) is updated in place; a plugin's first release inserts it, so new plugins
+need no hand-written SQL.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -32,6 +36,23 @@ class Manifest:
     def load(path: Path) -> "Manifest":
         data = json.loads(path.read_text(encoding="utf-8"))
         return Manifest(**data)
+
+    def check(self) -> None:
+        """Values are interpolated into SQL, so only accept the shapes the release pipeline produces."""
+        rules = {
+            "plugin_slug": r"[a-z0-9]+",
+            "version": r"[0-9]+\.[0-9]+\.[0-9]+",
+            "platform": r"mac|win",
+            "file_name": r"[A-Za-z0-9._-]+",
+            "storage_path": r"[a-z0-9]+/[0-9]+\.[0-9]+\.[0-9]+/[A-Za-z0-9._-]+",
+            "sha256": r"[0-9a-fA-F]{64}",
+        }
+        for field, pattern in rules.items():
+            value = getattr(self, field)
+            if not isinstance(value, str) or not re.fullmatch(pattern, value):
+                raise SystemExit(f"manifest {field} {value!r} is not a valid release value")
+        if not isinstance(self.byte_size, int) or self.byte_size <= 0:
+            raise SystemExit(f"manifest byte_size {self.byte_size!r} must be a positive integer")
 
 
 def resolve_executable(name: str) -> str:
@@ -67,12 +88,20 @@ def ensure_supabase_linked(web_repo: Path, *, dry_run: bool) -> None:
     run(link, cwd=web_repo, dry_run=False)
 
 
-def sql_update(m: Manifest) -> str:
+def sql_publish(m: Manifest) -> str:
+    m.check()
     return (
+        "with updated as ("
         "update public.plugin_releases "
         f"set version = '{m.version}', storage_path = '{m.storage_path}', file_name = '{m.file_name}', "
         f"sha256 = '{m.sha256}', byte_size = {m.byte_size}, published_at = now() "
-        f"where plugin_slug = '{m.plugin_slug}' and platform = '{m.platform}' and is_active = true;"
+        f"where plugin_slug = '{m.plugin_slug}' and platform = '{m.platform}' and is_active = true "
+        "returning id) "
+        "insert into public.plugin_releases "
+        "(plugin_slug, version, platform, storage_path, file_name, sha256, byte_size, is_active) "
+        f"select '{m.plugin_slug}', '{m.version}', '{m.platform}', '{m.storage_path}', '{m.file_name}', "
+        f"'{m.sha256}', {m.byte_size}, true "
+        "where not exists (select 1 from updated);"
     )
 
 
@@ -96,6 +125,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest = Manifest.load(args.manifest.expanduser().resolve())
     if not manifest.sha256:
         raise SystemExit("manifest sha256 is empty; run validate_plugin_release.py --write-manifest first")
+    manifest.check()
 
     artifact_path = (
         args.zip.expanduser().resolve()
@@ -135,11 +165,12 @@ def main(argv: list[str] | None = None) -> int:
         dry_run=args.dry_run,
     )
 
-    query = sql_update(manifest)
+    query = sql_publish(manifest)
     run(["npx", "supabase", "db", "query", "--linked", query], cwd=web_repo, dry_run=args.dry_run)
 
     print(f"\nUploaded {manifest.file_name} -> plugin-releases/{manifest.storage_path}")
-    print(f"Updated plugin_releases ({manifest.platform}): sha256={manifest.sha256}, byte_size={manifest.byte_size}")
+    print(f"Published plugin_releases ({manifest.plugin_slug}, {manifest.platform}): "
+          f"sha256={manifest.sha256}, byte_size={manifest.byte_size}")
     return 0
 
 

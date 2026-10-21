@@ -1,6 +1,6 @@
 ---
 name: vst
-description: Create a new Animal Audio VST3 plugin end to end in this monorepo (scaffold, DSP, animal-themed design with its own palette and Motif—layout flexible, not Duck-cloned, tests, build all plugins and fix build errors, local build+install on the user's machine, pluginval, docs, PR). Use when the user runs /vst <name or idea> or asks for a new plugin in the series. Enforces DRY and branding (BrandBadge, Theme, shared libraries).
+description: Create a new Animal Audio VST3 plugin end to end in this monorepo (scaffold, DSP, animal-themed design with its own palette and Motif—layout flexible, not Duck-cloned, tests, build all plugins and fix build errors, local build+install on the user's machine, pluginval, release readiness, docs, PR with a site-listing block; releasing is /release). Use when the user runs /vst <name or idea> or asks for a new plugin in the series. Enforces DRY and branding (BrandBadge, Theme, shared libraries).
 argument-hint: '<plugin name or idea, e.g. "Otter: a tempo-synced stereo wobbler">'
 ---
 
@@ -43,9 +43,12 @@ Non-negotiables:
 ## 2. Scaffold
 
 ```bash
-git fetch origin main && git checkout -b <branch-per-repo-conventions> origin/main
+git fetch origin main && git checkout -b feat/<name_lower>-plugin origin/main
 python3 scripts/new_plugin.py <Name> --description "<one line>" [--hue <0-360>]
 ```
+
+First time in the repo? Run the `/setup` prerequisites check (`python3 scripts/install_plugins.py --prereqs`) before
+building.
 
 This gives a **starter** that already builds: `GainShaperProcessor` + `ShaperEditor` + `Theme` (Duck's
 curve-shaper stack). Treat it as a green baseline—not a layout you must keep. Replace the editor and/or
@@ -213,7 +216,7 @@ cmake --build build --target <Name>_VST3 --parallel
 python3 scripts/install_plugins.py --only <name_lower>
 ```
 
-`<name_lower>` is the plugin folder under `plugins/` (e.g. `icepenguin` for target `IcePenguin`). The script
+`<name_lower>` is the plugin folder under `plugins/` (e.g. `honeybadger` for target `HoneyBadger`). The script
 prints each **installed path** and **build stamp**; repeat that list to the user.
 
 **Host steps** (same as `/setup`; say this every time):
@@ -226,9 +229,26 @@ prints each **installed path** and **build stamp**; repeat that list to the user
 **Cloud / no local shell:** skip install, say so explicitly, and give the two commands above plus a pointer
 to `.cursor/skills/setup/SKILL.md` for a full-series install.
 
-**Bundle name:** In `aa_add_plugin`, set `PRODUCT_NAME` to the PascalCase target name (e.g. `IcePenguin`) so
+**Bundle name:** In `aa_add_plugin`, set `PRODUCT_NAME` to the PascalCase target name (e.g. `HoneyBadger`) so
 the artefact is `<Name>.vst3`. Spaces in `PRODUCT_NAME` break `verify_plugin.sh` and confuse install paths.
-Marketing names (e.g. "Ice Penguin") belong in `getName()` and `theme.name` only.
+Marketing names (e.g. "Honey Badger") belong in `getName()` and `theme.name` only; the release installers derive the
+same words from `PRODUCT_NAME` by splitting the PascalCase.
+
+### Release readiness (the plugin must be shippable as merged)
+
+After merge a maintainer releases it with `/release <name_lower>` and no further code changes. Check:
+
+- `plugins/<name_lower>/VERSION` exists and is semver (`0.1.0` from the scaffold; the maintainer picks the public
+  version at release time).
+- `PRODUCT_NAME` in `CMakeLists.txt` is the PascalCase target (no spaces); `getName()` / `theme.name` are its words
+  ("HoneyBadger" → "Honey Badger" / "HONEY BADGER"). Installer text, the Windows install script and the release file
+  names are derived from it automatically.
+- Plugin code and every parameter ID / ValueTree identifier are final: they are the saved-state contract once released.
+- `pluginval` passes at strictness 10 locally (CI runs 5 on Linux) and CI is green on Linux, macOS and Windows.
+- `docs/images/<name_lower>-ui.png` is committed (README and the website product page use it).
+- No changes under `scripts/release*`, `scripts/build_mac_pkg.sh`, `scripts/installers/` or
+  `.github/workflows/release-plugin.yml` for this plugin. If the generic pipeline really cannot ship it, fix the
+  generic code with tests in a separate PR; never add `if slug == ...` or a `release_<name>.sh` wrapper.
 
 ## 9. Docs
 
@@ -241,9 +261,23 @@ Marketing names (e.g. "Ice Penguin") belong in `getName()` and `theme.name` only
 ## 10. Commit, push, PR
 
 - Commit per logical change: (a) shared extractions, (b) the plugin, (c) docs/screenshots.
-- Push the branch, open the PR to `main` (draft is fine). Description: what the plugin does, animal + palette
-  hue, what was extracted to shared/ (and which plugins it touched), exactly what was verified (ctest count,
-  pluginval level, screenshot) and what was not (macOS/Windows, real DAW), assumptions you made.
+- Push and open the PR to `main` (draft is fine). No write access to the repo (`git push` is denied)? Fork instead:
+  `gh repo fork --remote --remote-name fork && git push -u fork HEAD && gh pr create --repo <upstream owner>/<repo> --base main`.
+- PR description: what the plugin does, animal + palette hue, what was extracted to shared/ (and which plugins it
+  touched), exactly what was verified (ctest count, pluginval level, screenshot) and what was not (macOS/Windows,
+  real DAW), assumptions you made. End it with a **Site listing** block the maintainer copies into the
+  animal-audio-web catalog at release time:
+
+  ```text
+  slug: <name_lower>            bundle: <Name>.vst3           display name: <WORDS IN CAPS>
+  category: <e.g. Stereo wobbler>
+  blurb: <one sentence, playful but clean>
+  long description: <two sentences>
+  highlights: <three short phrases>
+  accent: <hex of palette.accent> on <hex of palette.panel>   (from Source/ui/<Name>Theme.cpp)
+  ```
+- Releasing is not part of this skill: after merge a maintainer runs `/release <name_lower>` (signs + notarizes on
+  Mac with repo secrets, uploads, publishes the GitHub Release, lists it on animal.audio). See docs/RELEASE.md.
 - Final report to the user, briefly: PR link (if any), what was built, what was shared/extracted, verification,
   **installed VST3 path(s) and build stamp** (if you ran install), Ableton rescan reminder, caveats (DAW not
-  tried unless they confirmed load).
+  tried unless they confirmed load), and the next step: "once merged, a maintainer runs `/release <name_lower>`".
