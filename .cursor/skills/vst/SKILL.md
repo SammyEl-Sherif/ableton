@@ -213,7 +213,7 @@ cmake --build build --target <Name>_VST3 --parallel
 python3 scripts/install_plugins.py --only <name_lower>
 ```
 
-`<name_lower>` is the plugin folder under `plugins/` (e.g. `icepenguin` for target `IcePenguin`). The script
+`<name_lower>` is the plugin folder under `plugins/` (e.g. `honeybadger` for target `HoneyBadger`). The script
 prints each **installed path** and **build stamp**; repeat that list to the user.
 
 **Host steps** (same as `/setup`; say this every time):
@@ -226,9 +226,10 @@ prints each **installed path** and **build stamp**; repeat that list to the user
 **Cloud / no local shell:** skip install, say so explicitly, and give the two commands above plus a pointer
 to `.cursor/skills/setup/SKILL.md` for a full-series install.
 
-**Bundle name:** In `aa_add_plugin`, set `PRODUCT_NAME` to the PascalCase target name (e.g. `IcePenguin`) so
+**Bundle name:** In `aa_add_plugin`, set `PRODUCT_NAME` to the PascalCase target name (e.g. `HoneyBadger`) so
 the artefact is `<Name>.vst3`. Spaces in `PRODUCT_NAME` break `verify_plugin.sh` and confuse install paths.
-Marketing names (e.g. "Ice Penguin") belong in `getName()` and `theme.name` only.
+Marketing names (e.g. "Honey Badger") belong in `getName()` and `theme.name` only; the release installers derive the
+same words from `PRODUCT_NAME` by splitting the PascalCase.
 
 ## 9. Docs
 
@@ -244,6 +245,9 @@ Marketing names (e.g. "Ice Penguin") belong in `getName()` and `theme.name` only
 - Push the branch, open the PR to `main` (draft is fine). Description: what the plugin does, animal + palette
   hue, what was extracted to shared/ (and which plugins it touched), exactly what was verified (ctest count,
   pluginval level, screenshot) and what was not (macOS/Windows, real DAW), assumptions you made.
+- Releasing is not part of this skill and needs no script or workflow edits: after merge, a maintainer runs the
+  **Release plugin** workflow with the new slug (signs + notarizes on Mac with repo secrets). See docs/RELEASE.md
+  "Releasing a new plugin". Never add per-plugin branches to release scripts.
 - Final report to the user, briefly: PR link (if any), what was built, what was shared/extracted, verification,
   **installed VST3 path(s) and build stamp** (if you ran install), Ableton rescan reminder, caveats (DAW not
   tried unless they confirmed load).

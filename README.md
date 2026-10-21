@@ -45,7 +45,6 @@ and [AGENTS.md](AGENTS.md).
 | Plugin | What it does | Source | Status |
 | --- | --- | --- | --- |
 | **Duck** | Tempo-synced volume ducking with a draggable curve editor, 16 preset shapes and a big MIX knob | `plugins/duck` | Alpha: builds as VST3, all tests pass, passes pluginval level 10 on Linux; not yet tried in a real DAW |
-| **Ice Penguin** | Glacial stereo reverb with 12 ice-themed presets and trim controls | `plugins/icepenguin` | Alpha: VST3 builds, plugin tests pass; not yet tried in a real DAW |
 <!-- PLUGINS:END -->
 
 More animals are on the way. Adding one takes a single command (or the `/vst` agent skill), see [Adding a plugin](#adding-a-plugin).
@@ -76,18 +75,6 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
 > (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
-
-## Ice Penguin
-
-A glacial stereo reverb: pick one of twelve ice-themed spaces (Glacier Hall, Aurora Shimmer, Igloo Chamber, …),
-then trim **MIX**, **DECAY**, **TONE**, **PREDELAY**, and **SIZE**. The engine is a Schroeder-style comb/allpass
-network with predelay and smoothed parameters so automation stays click-free.
-
-<p align="center">
-  <img src="docs/images/icepenguin-ui.png" alt="Ice Penguin by Animal Audio" width="760">
-</p>
-
-> Screenshot from `AA_SCREENSHOT_DIR=docs/images ./build/plugins/icepenguin/IcePenguinTests "icepenguin: editor renders headlessly"`.
 
 ## Build
 
@@ -150,12 +137,14 @@ They are unsigned: on macOS run `xattr -dr com.apple.quarantine <Plugin>.vst3` a
 
 ## Release zips (animal.audio downloads)
 
-Mac builds for the website must be **Developer ID signed and notarized** before upload.
+Mac builds for the website must be **Developer ID signed and notarized** before upload. The same pipeline
+works for every plugin: pass its slug (the folder name under `plugins/`, e.g. `duck`).
 
 1. Complete [docs/APPLE_DEVELOPER_SETUP.md](docs/APPLE_DEVELOPER_SETUP.md).
-2. Run the pipeline: `./scripts/release_plugin.sh duck` (optionally `--upload`) — see [docs/RELEASE.md](docs/RELEASE.md).
-3. Validate an existing artifact: `python3 scripts/validate_plugin_release.py --plugin duck --platform mac --artifact … --require-notarized`.
-4. Windows: `.\scripts\release_win_plugin.ps1 -Plugin duck -Upload` (or GitHub Actions → **Release plugin**, platform `win`).
+2. Run the pipeline: `./scripts/release_plugin.sh <slug>` (optionally `--upload`) — see [docs/RELEASE.md](docs/RELEASE.md).
+   Or GitHub Actions → **Release plugin**, slug + platform `mac` (signs and notarizes with the repo secrets).
+3. Validate an existing artifact: `python3 scripts/validate_plugin_release.py --plugin <slug> --platform mac --artifact … --require-notarized`.
+4. Windows: `.\scripts\release_win_plugin.ps1 -Plugin <slug> -Upload` (or GitHub Actions → **Release plugin**, platform `win`).
 
 Upload paths and Supabase steps: [docs/RELEASE.md](docs/RELEASE.md) and **animal-audio-web** `docs/DOWNLOADS_LAUNCH.md`.
 
