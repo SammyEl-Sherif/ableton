@@ -46,6 +46,7 @@ and [AGENTS.md](AGENTS.md).
 | Plugin | What it does | Source | Status |
 | --- | --- | --- | --- |
 | **Duck** | Tempo-synced volume ducking with a draggable curve editor, 16 preset shapes and a big MIX knob | `plugins/duck` | Alpha: builds as VST3, all tests pass, passes pluginval level 10 on Linux; not yet tried in a real DAW |
+| **Turtle Time** | Tempo-synced half-time, reverse, and beat repeat | `plugins/turtletime` | Alpha: VST3 builds, plugin tests pass, passes pluginval level 10 on macOS; not yet tried in a real DAW |
 <!-- PLUGINS:END -->
 
 More animals are on the way. Adding one takes a single command (or the `/vst` agent skill), see [Adding a plugin](#adding-a-plugin).
@@ -76,6 +77,26 @@ on every beat and lets it swim back up along a curve you draw. No sidechain rout
 
 > Both screenshots are rendered by the UI code itself, headlessly, in the test suite
 > (`AA_SCREENSHOT_DIR=docs/images ./build/plugins/duck/DuckTests "duck: editor renders headlessly"`).
+
+## Turtle Time
+
+A tempo-synced time effect in the spirit of half-time tools: it plays the signal back slower (or backwards,
+or as a repeating slice) and jumps back onto the grid so the pitch drop stays in time. No separate sidechain.
+
+- **Eight time patterns**: Shell, Paddle, Nap and Hatch are half-speed (one octave down) over a bar, half note,
+  two bars, or a beat. Reverse and Drift play a bar backwards. Tap and Skitter repeat a short slice for a bar.
+- **Host sync**: while the transport is running the window locks to the playhead. Stopped, or with no position,
+  it free-runs at the host tempo or the **BPM** knob. The corner reads `HOST SYNC` or `FREE RUN`.
+- **Lane**: the vertical line is "now"; the turtle sits on the audio actually being read, so you can see the lag.
+- **MIX**: dry/wet. 100% is the full effect (the default). 0% is a straight copy of the input. Mix moves are smoothed.
+- **Click-free**: pointer jumps crossfade over about 10 ms. The audio thread never allocates, locks, or does I/O.
+- **State**: pattern, mix, and fallback BPM are saved with the Live set (APVTS).
+
+<p align="center">
+  <img src="docs/images/turtletime-ui.png" alt="Turtle Time by Animal Audio" width="760">
+</p>
+
+> Screenshot from `AA_SCREENSHOT_DIR=docs/images ./build/plugins/turtletime/TurtleTimeTests "turtletime: editor renders headlessly"`.
 
 ## Build
 
