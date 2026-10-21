@@ -14,8 +14,7 @@ PLUGINS_DIR = ROOT / "plugins"
 _SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 _CMAKE_TARGET = re.compile(r"aa_add_plugin\s*\(\s*(\w+)", re.MULTILINE)
 _PRODUCT_NAME = re.compile(r'PRODUCT_NAME\s+"([^"]+)"')
-# Plugins with a signed .pkg installer (macOS); others ship zip-only on Mac when added later.
-MAC_PKG_SLUGS = frozenset({"duck"})
+_PASCAL_WORD = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+")
 
 
 @dataclass(frozen=True)
@@ -30,8 +29,13 @@ class PluginReleaseInfo:
         return f"{self.product_name}.vst3"
 
     @property
-    def supports_mac_pkg(self) -> bool:
-        return self.slug in MAC_PKG_SLUGS
+    def display_name(self) -> str:
+        """Human-facing name for installers: PascalCase product split into words ("HoneyBadger" -> "Honey Badger")."""
+        return " ".join(_PASCAL_WORD.findall(self.product_name)) or self.product_name
+
+    @property
+    def mac_pkg_identifier(self) -> str:
+        return f"com.animalaudio.{self.slug}.vst3"
 
     @property
     def github_tag(self) -> str:
@@ -75,11 +79,12 @@ def _parse_cmake(cmake_path: Path) -> tuple[str, str]:
     return target_match.group(1), product_match.group(1)
 
 
-def list_plugin_slugs() -> list[str]:
+def list_plugin_slugs(*, repo_root: Path | None = None) -> list[str]:
+    plugins_dir = (repo_root / "plugins") if repo_root else PLUGINS_DIR
     slugs: list[str] = []
-    if not PLUGINS_DIR.is_dir():
+    if not plugins_dir.is_dir():
         return slugs
-    for path in sorted(PLUGINS_DIR.iterdir()):
+    for path in sorted(plugins_dir.iterdir()):
         if path.is_dir() and (path / "CMakeLists.txt").is_file():
             slugs.append(path.name)
     return slugs

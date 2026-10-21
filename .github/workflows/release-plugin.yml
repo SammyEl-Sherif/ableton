@@ -5,11 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       plugin:
-        description: Plugin slug (folder under plugins/)
-        type: choice
-        options:
-          - duck
-          - icepenguin
+        description: Plugin slug (folder under plugins/, e.g. duck)
+        type: string
+        required: true
         default: duck
       platform:
         description: Target OS
@@ -35,8 +33,7 @@ env:
 
 jobs:
   release-mac:
-    # Mac .pkg pipeline is implemented for Duck; other plugins can add packaging later.
-    if: inputs.platform == 'mac' && inputs.plugin == 'duck'
+    if: inputs.platform == 'mac'
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -45,9 +42,16 @@ jobs:
 
       - name: Read plugin release metadata
         id: meta
+        env:
+          PLUGIN_INPUT: ${{ inputs.plugin }}
         run: |
           set -euo pipefail
-          slug='${{ inputs.plugin }}'
+          slug="$PLUGIN_INPUT"
+          if [[ ! "$slug" =~ ^[a-z0-9]+$ ]]; then
+            echo "Invalid plugin slug '$slug' (expected a lowercase folder name under plugins/)."
+            exit 1
+          fi
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
           version=$(python3 scripts/read_plugin_version.py "$slug")
           tag=$(python3 scripts/read_plugin_version.py "$slug" --tag)
           product=$(python3 -c "import sys; sys.path.insert(0,'scripts'); from lib.plugin_release import get_plugin; print(get_plugin('$slug').product_name)")
@@ -123,13 +127,13 @@ jobs:
           source ~/.appstoreconnect/notary.env
           upload_flag=--skip-upload
           if [ "${{ inputs.upload }}" = "true" ]; then upload_flag=--upload; fi
-          ./scripts/release_plugin.sh '${{ inputs.plugin }}' $upload_flag
+          ./scripts/release_plugin.sh '${{ steps.meta.outputs.slug }}' $upload_flag
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.plugin }}-${{ steps.meta.outputs.version }}-mac
-          path: dist/releases/${{ inputs.plugin }}/${{ steps.meta.outputs.version }}/
+          name: ${{ steps.meta.outputs.slug }}-${{ steps.meta.outputs.version }}-mac
+          path: dist/releases/${{ steps.meta.outputs.slug }}/${{ steps.meta.outputs.version }}/
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -139,8 +143,8 @@ jobs:
           tag: ${{ steps.meta.outputs.tag }}
           name: ${{ steps.meta.outputs.product }} ${{ steps.meta.outputs.version }}
           files: |
-            dist/releases/${{ inputs.plugin }}/${{ steps.meta.outputs.version }}/${{ steps.meta.outputs.product }}-${{ steps.meta.outputs.version }}-mac-installer.pkg
-            dist/releases/${{ inputs.plugin }}/${{ steps.meta.outputs.version }}/manifest-mac.json
+            dist/releases/${{ steps.meta.outputs.slug }}/${{ steps.meta.outputs.version }}/${{ steps.meta.outputs.product }}-${{ steps.meta.outputs.version }}-mac-installer.pkg
+            dist/releases/${{ steps.meta.outputs.slug }}/${{ steps.meta.outputs.version }}/manifest-mac.json
 
   release-win:
     if: inputs.platform == 'win'
@@ -153,9 +157,16 @@ jobs:
       - name: Read plugin release metadata
         id: meta
         shell: bash
+        env:
+          PLUGIN_INPUT: ${{ inputs.plugin }}
         run: |
           set -euo pipefail
-          slug='${{ inputs.plugin }}'
+          slug="$PLUGIN_INPUT"
+          if [[ ! "$slug" =~ ^[a-z0-9]+$ ]]; then
+            echo "Invalid plugin slug '$slug' (expected a lowercase folder name under plugins/)."
+            exit 1
+          fi
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
           version=$(python3 scripts/read_plugin_version.py "$slug")
           tag=$(python3 scripts/read_plugin_version.py "$slug" --tag)
           product=$(python3 -c "import sys; sys.path.insert(0,'scripts'); from lib.plugin_release import get_plugin; print(get_plugin('$slug').product_name)")
@@ -180,16 +191,16 @@ jobs:
         run: |
           $upload = [bool]::Parse('${{ inputs.upload }}')
           if ($upload) {
-            .\scripts\release_win_plugin.ps1 -Plugin '${{ inputs.plugin }}' -Upload
+            .\scripts\release_win_plugin.ps1 -Plugin '${{ steps.meta.outputs.slug }}' -Upload
           } else {
-            .\scripts\release_win_plugin.ps1 -Plugin '${{ inputs.plugin }}'
+            .\scripts\release_win_plugin.ps1 -Plugin '${{ steps.meta.outputs.slug }}'
           }
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.plugin }}-${{ steps.meta.outputs.version }}-win
-          path: dist/releases/${{ inputs.plugin }}/${{ steps.meta.outputs.version }}/
+          name: ${{ steps.meta.outputs.slug }}-${{ steps.meta.outputs.version }}-win
+          path: dist/releases/${{ steps.meta.outputs.slug }}/${{ steps.meta.outputs.version }}/
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -199,5 +210,5 @@ jobs:
           tag: ${{ steps.meta.outputs.tag }}
           name: ${{ steps.meta.outputs.product }} ${{ steps.meta.outputs.version }}
           files: |
-            dist/releases/${{ inputs.plugin }}/${{ steps.meta.outputs.version }}/${{ steps.meta.outputs.product }}-${{ steps.meta.outputs.version }}-win-vst3.zip
-            dist/releases/${{ inputs.plugin }}/${{ steps.meta.outputs.version }}/manifest-win.json
+            dist/releases/${{ steps.meta.outputs.slug }}/${{ steps.meta.outputs.version }}/${{ steps.meta.outputs.product }}-${{ steps.meta.outputs.version }}-win-vst3.zip
+            dist/releases/${{ steps.meta.outputs.slug }}/${{ steps.meta.outputs.version }}/manifest-win.json

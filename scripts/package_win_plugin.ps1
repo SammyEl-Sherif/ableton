@@ -18,6 +18,7 @@ print(json.dumps({
     'slug': p.slug,
     'version': p.version,
     'product': p.product_name,
+    'display': p.display_name,
     'bundle': p.bundle_name,
     'zip': p.win_zip_name(),
     'dist': str(p.release_root()).replace('\\', '/'),
@@ -36,9 +37,9 @@ if (-not (Test-Path $bundle)) {
 }
 
 $eulaName = if ($meta.slug -eq 'duck') { 'Animal-Audio-Duck-EULA.txt' } else { 'Animal-Audio-EULA.txt' }
-$installScript = Join-Path $PSScriptRoot "installers\win\Install-$($meta.product).ps1"
-if (-not (Test-Path $installScript)) {
-    Write-Error "Missing Windows installer script: $installScript"
+$installTemplate = Join-Path $PSScriptRoot "installers\win\Install-Plugin.ps1"
+if (-not (Test-Path $installTemplate)) {
+    Write-Error "Missing Windows installer template: $installTemplate"
 }
 
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
@@ -48,7 +49,8 @@ New-Item -ItemType Directory -Force -Path $staging | Out-Null
 Copy-Item -Recurse -Force $bundle (Join-Path $staging $meta.bundle)
 Copy-Item -Force (Join-Path $PSScriptRoot "..\docs\EULA.md") (Join-Path $staging $eulaName)
 Copy-Item -Force (Join-Path $PSScriptRoot "..\docs\THIRD_PARTY_NOTICES.md") (Join-Path $staging "Third-Party-Notices.txt")
-Copy-Item -Force $installScript (Join-Path $staging "Install-$($meta.product).ps1")
+$installScript = (Get-Content -Raw $installTemplate).Replace('__BUNDLE__', $meta.bundle).Replace('__DISPLAY_NAME__', $meta.display)
+[System.IO.File]::WriteAllText((Join-Path $staging "Install-$($meta.product).ps1"), $installScript)
 if (Test-Path $outZip) { Remove-Item $outZip -Force }
 Compress-Archive -Path (Join-Path $staging "*") -DestinationPath $outZip
 Remove-Item $staging -Recurse -Force

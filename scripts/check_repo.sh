@@ -37,7 +37,7 @@ else
 fi
 
 if command -v pwsh >/dev/null; then
-    for script in scripts/*.ps1; do
+    for script in scripts/*.ps1 scripts/installers/win/*.ps1; do
         pwsh -NoProfile -Command "\$e = \$null; [void][System.Management.Automation.Language.Parser]::ParseFile('$script', [ref]\$null, [ref]\$e); if (\$e) { \$e | Out-String | Write-Host; exit 1 }" \
             || { echo "error: PowerShell syntax error in $script" >&2; status=1; }
     done
