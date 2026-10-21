@@ -10,6 +10,8 @@ adding a plugin). Keep it updated when you change those things.
 - Build/test: `cmake -S . -B build -G Ninja && cmake --build build && ctest --test-dir build --output-on-failure`
 - First-time dev: the `/setup` skill (`.cursor/skills/setup`), or `python3 scripts/install_plugins.py --build --clean`.
 - New plugin: the `/vst <name or idea>` skill (`.cursor/skills/vst`), or `python3 scripts/new_plugin.py <PascalName> --description "..."`
+- Release (maintainers): the `/release <slug>` skill (`.cursor/skills/release`). The pipeline is plugin-agnostic; never add
+  per-plugin release code. Clone-to-site lifecycle: AGENTS.md "Plugin lifecycle".
 - Every plugin UI shows a build stamp (version | git SHA | date) from `shared/core` BuildStamp.
 - DRY: the second use of code moves to `shared/`; never copy from another plugin or include across plugins. Each plugin has its own
   palette (`Theme`, unique `kThemeHue`) and animal (`Motif`); UI layout is per plugin. See AGENTS.md "Shared-library policy".

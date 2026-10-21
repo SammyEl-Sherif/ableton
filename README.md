@@ -37,7 +37,8 @@ and [AGENTS.md](AGENTS.md).
 | Skill | When to use |
 | --- | --- |
 | **`/setup`** | New dev or tester: clone, build, install VST3s, rescan in Ableton |
-| **`/vst`** | New Animal Audio effect: animal-themed UI + shared libraries (layout is up to the concept) |
+| **`/vst`** | New Animal Audio effect: animal-themed UI + shared libraries (layout is up to the concept), ready to release |
+| **`/release`** | Maintainers: ship a merged plugin (notarized Mac `.pkg`, Windows zip, GitHub Release) and list it on animal.audio |
 
 ## The series
 

@@ -91,8 +91,10 @@ left panel. That is how the user confirms the host loaded the build you just ins
 
 macOS only: if Live says the plugin cannot be loaded or is damaged, run
 `xattr -dr com.apple.quarantine <path printed above>` and `codesign --force --deep --sign - <path>` (the script already
-does this), then rescan. Plugins are not notarized for distribution; see `docs/APPLE_DEVELOPER_SETUP.md` for release
-builds.
+does this), then rescan. Local builds are not notarized; signed + notarized builds for animal.audio come only from the maintainer
+`/release` skill (docs/RELEASE.md).
+
+Next, if the user wants to make a plugin: the `/vst <name or idea>` skill (lifecycle: AGENTS.md "Plugin lifecycle").
 
 ## 5. Other operations
 

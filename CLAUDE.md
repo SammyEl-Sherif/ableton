@@ -12,6 +12,8 @@ Quick reminders:
   (builds + installs every plugin under `plugins/`; `--list`, `--uninstall`, `--dry-run`).
 - DRY: second use of code moves it to `shared/` (dsp/core/ui/testing); never copy from another plugin. Per-plugin
   look = `Theme` (own palette + animal `Motif`) + `BrandBadge`; layout is per plugin (`ShaperEditor` optional).
+- Release a merged plugin (maintainers): the `/release <slug>` skill (`.claude/skills/release`); pipeline is
+  plugin-agnostic, never add per-plugin release code. Lifecycle table: AGENTS.md "Plugin lifecycle".
 - Skills' canonical files are `.cursor/skills/<name>/SKILL.md`; after editing one run `scripts/sync_skills.sh`.
 - Audio thread: no allocation, no blocking locks, no I/O; smooth every audible gain change.
 - Keep AGENTS.md updated when you change layout, commands or conventions.
