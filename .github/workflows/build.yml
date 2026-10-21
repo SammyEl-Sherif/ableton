@@ -97,6 +97,45 @@ jobs:
           path: dist
           if-no-files-found: error
 
+  scaffold:
+    name: new plugin scaffold builds and tests (Linux)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxext-dev libgl1-mesa-dev \
+            libcurl4-openssl-dev xvfb
+
+      - name: Cache fetched dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-scaffold-${{ runner.os }}-${{ hashFiles('cmake/FetchDependencies.cmake') }}
+
+      - name: Scaffold a throwaway plugin
+        run: python3 scripts/new_plugin.py Scaffoldcheck --description "CI scaffold check" --no-readme
+
+      - name: Build and test it
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAA_PLUGINS=scaffoldcheck
+          cmake --build build --parallel 4 --target Scaffoldcheck_VST3 ScaffoldcheckTests
+          xvfb-run -a ctest --test-dir build --output-on-failure -R '^scaffoldcheck\.'
+
+      - name: Release metadata resolves
+        run: |
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          from lib.plugin_release import get_plugin
+          p = get_plugin("scaffoldcheck")
+          assert p.bundle_name == "Scaffoldcheck.vst3" and p.mac_pkg_identifier == "com.animalaudio.scaffoldcheck.vst3", p
+          print(p)
+          PY
+
   format:
     name: clang-format
     runs-on: ubuntu-22.04

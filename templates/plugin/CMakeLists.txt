@@ -15,8 +15,11 @@ target_include_directories(__NAME__ PRIVATE Source)
 if(AA_BUILD_TESTS)
     # The standard shaper-plugin suites (shared/testing) run against this plugin's own processor and editor.
     # Set AA_SCREENSHOT_DIR to also write the headless UI renders as PNGs.
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" ___NAME_LOWER___version)
+    string(STRIP "${___NAME_LOWER___version}" ___NAME_LOWER___version)
     add_executable(__NAME__Tests tests/__NAME__Tests.cpp ${__NAME_UPPER___SOURCES})
     target_include_directories(__NAME__Tests PRIVATE Source)
+    aa_attach_plugin_build_info(__NAME__Tests "${___NAME_LOWER___version}")
     target_link_libraries(__NAME__Tests PRIVATE
         animalaudio::testing
         juce::juce_recommended_config_flags
